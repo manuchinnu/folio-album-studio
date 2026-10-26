@@ -185,3 +185,27 @@ Initialized a new Git repository on main inside album-studio only (parent photo 
 
 ## 2026-10-26 initial staged inventory
 Staged103project files (no commit/push). Staged image inventory empty after excluding WEBP/RAW as well as JPEG/PNG/HEIC. Ran common-token/private-key/literal-secret scan against actual staged blobs:0findings, report artifacts/initial-staged-scan.json. Scanner work/scan-staged.py does not print matched values; coverage is limited and not proof all secrets absent. Found CI lacked regenerated import fixtures after image exclusion; added create-import-fixtures.py before tests. git diff --cached --check reports existing trailing whitespace in vendored font licence and historical docs/tests; licence unchanged. Next full clean-fixture verification and final inventory before single initial commit/push. Quota100%primary77%weekly at start.
+
+## 2026-10-26 repository pushed
+Initial commit ff340092cb7d557688e1c875b3b0cfcd08ac06cf pushed to public manuchinnu/folio-album-studio main.103files,no images;Vera.ttf only binary;staged secret-pattern scan0matches. npm verify40tests/typecheck/schema passed. CI40281734559 in_progress; check run outcome next, no success claimed. Report32 prepared forClaude. Commit authored Codex, no user identity fabricated. Quota94%primary99%weekly at start.
+
+## 2026-10-26 cross-platform CI confirmed
+Run40281734559 succeeded at ff340092cb7d557688e1c875b3b0cfcd08ac06cf on Ubuntu,Windows,macOS. Rust tests and Python reference40page export/audit passed on all; mac arm64 asserted; reference40spread benchmark/memory passed Windows/mac. Job JSON saved artifacts/ci-40281734559-jobs.json. Report33 and job evidence posted to Drive and read back. This is reference/CI evidence only, not Rust mixed export/parity/packaging or M1a acceptance. Next canonical schema and real Rust mixed export. Quota74%primary96%weekly at start.
+
+## 2026-10-26 frozen mixed export expectations
+Added independent fixtures/audit/canvera-12x15L-80page-proof.json:41units,39spreads+2singles, literal4394/8787x3520 dimensions and PDF points. Explicit zero-additional-bleed geometry proof only, not lab production profile; naming test-only, cover excluded. Four mixed audit tests pass including full frozen fixture and doubled-single-width negative control. Actual Rust renderer/parity remains next; no milestone acceptance claimed. Quota61%primary94%weekly. No new external report for this small preparatory change.
+
+## 2026-10-26 typed Rust geometry proof plan
+Added export_plan::geometry_proof with typed serializable mixed units, exact pixel-to-point PDF boxes, deterministic test filenames and explicit proofOnly. inspect-profile now emits this plan instead of hand-built JSON, preserving prior fields. Frozen independent80page fixture cross-check passes; all21Rust tests pass offline/locked. Zero additional bleed remains proof-only; no production lab policy or actual rendering claimed. Next wire real rendering to plan; canonical Project and parity still unfinished. Quota52%primary92%weekly at start.
+
+## 2026-10-26 PDF crop placement transform
+Added Crop::pdf_placement returning PDF image affine matrix and required frame clip, converting top-left normalized crop into bottom-left PDF coordinates. Asymmetric crop corner test catches vertical inversion; rejects invalid/overflow geometry. All22Rust tests pass offline/locked. This is renderer groundwork, not PDF output or parity evidence; caller must clip before painting. Quota43%primary91%weekly at start. Actual renderer, canonical schema, native feasibility and M1a evidence remain pending.
+
+## 2026-10-26 exclusive file publication primitive
+Added publication::write_new: stage bytes beside destination, sync file, atomically hard-link into a new destination without replacing existing work, clean staging best-effort. Eight concurrent writers test yields exactly one complete winner. All23Rust tests pass outside sandbox (approved escalation); sandbox blocks hard links and initially gave zero winners. Unsupported filesystems fail closed; no partial-copy fallback. Directory power-loss durability and hostile-directory races explicitly not guaranteed. Not yet integrated into renderer/project persistence. Quota98%primary90%weekly; no reset credits used. Actual export/schema/parity still pending.
+
+## 2026-10-26 proof plan save integration
+Added save-proof-plan <profile> <spreads> <new-json-path>, using validated geometry and exclusive publication. Process test confirms invalid40spread requests create nothing, complete41unit proof saves, and repeat save cannot overwrite existing bytes. All24Rust tests pass with approved hard-link access outside sandbox. This saves geometry JSON only, not a rendered album or canonical Project; full rendering/parity gates remain pending. Quota88%primary88%weekly at start.
+
+## 2026-10-26 grid composition integration
+Connected preflighted grid placements to exact mixed proof geometry and PDF crop transforms through export_plan::compose_grid. Returns per-unit source indices/matrices/clips only after all sources pass crop/PPI/face checks. Test verifies ordered distinct source mapping, bounded clips and rejection of insufficient resolution. All25Rust tests pass (approved outside-sandbox run for hard-link tests). Still no decoded images or PDF/JPEG outputs; actual renderer and parity next. Quota82%primary87%weekly at start.

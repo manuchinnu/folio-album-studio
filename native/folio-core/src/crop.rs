@@ -28,6 +28,33 @@ impl TryFrom<CropInput> for Crop {
 }
 
 impl Crop {
+    /// PDF image placement matrix for a full source image, clipped to `frame`.
+    /// Source crop coordinates are top-left normalized; PDF uses bottom-left.
+    /// The caller must apply the frame clip before painting the image.
+    pub fn pdf_placement(self, frame: crate::safety::RectMm, page_height_mm: f64)
+        -> Result<([f64; 6], [f64; 4]), &'static str> {
+        let values = [frame.x, frame.y, frame.width, frame.height, page_height_mm];
+        if values.iter().any(|v| !v.is_finite()) || frame.width <= 0.0
+            || frame.height <= 0.0 || page_height_mm <= 0.0 {
+            return Err("Invalid PDF placement geometry");
+        }
+        let pt = 72.0 / 25.4;
+        let left = frame.x * pt;
+        let bottom = (page_height_mm - frame.y - frame.height) * pt;
+        let width = frame.width * pt;
+        let height = frame.height * pt;
+        let image_width = width / self.w;
+        let image_height = height / self.h;
+        let matrix = [image_width, 0.0, 0.0, image_height,
+            left - self.x * image_width,
+            bottom - (1.0 - self.y - self.h) * image_height];
+        let clip = [left, bottom, width, height];
+        if matrix.iter().chain(clip.iter()).any(|v| !v.is_finite()) {
+            return Err("PDF placement overflow");
+        }
+        Ok((matrix, clip))
+    }
+
     /// Map a fully retained source face to its physical position in the frame.
     pub fn project(self, face: Self, frame: crate::safety::RectMm)
         -> Result<crate::safety::RectMm, &'static str> {
@@ -118,6 +145,25 @@ impl Crop {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn pdf_crop_maps_source_corners_to_clip_without_vertical_flip() {
+        use crate::safety::RectMm;
+        // Asymmetric crop catches top/bottom inversion that centered crops hide.
+        let crop = super::Crop::new(0.1, 0.2, 0.5, 0.3).unwrap();
+        let frame = RectMm { x: 25.4, y: 50.8, width: 50.8, height: 25.4 };
+        let (m, clip) = crop.pdf_placement(frame, 254.0).unwrap();
+        let close = |a: f64, b: f64| assert!((a-b).abs() < 1e-9, "{a} != {b}");
+        for (a,b) in clip.into_iter().zip([72.0, 504.0, 144.0, 72.0]) { close(a,b); }
+        // PDF image coordinates invert the source top-left Y convention.
+        close(m[0] * 0.1 + m[4], clip[0]);
+        close(m[0] * 0.6 + m[4], clip[0] + clip[2]);
+        close(m[3] * (1.0 - 0.2) + m[5], clip[1] + clip[3]);
+        close(m[3] * (1.0 - 0.5) + m[5], clip[1]);
+        assert!(crop.pdf_placement(frame, f64::NAN).is_err());
+        assert!(crop.pdf_placement(RectMm { width: f64::MAX, ..frame }, 254.0).is_err());
+        assert!(crop.pdf_placement(RectMm { height: 0.0, ..frame }, 254.0).is_err());
+    }
+
     use super::*;
     #[test]
     fn grid_fit_blocks_face_clipping_and_low_native_resolution() {

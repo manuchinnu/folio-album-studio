@@ -1,6 +1,31 @@
 use std::io::Write;
 use std::process::{Command, Stdio};
 
+#[test]
+fn saved_plan_is_complete_and_existing_work_is_preserved() {
+    let root = std::env::temp_dir().join(format!("folio-plan-cli-{}", std::process::id()));
+    std::fs::create_dir(&root).unwrap();
+    let path = root.join("proof.json");
+    let run = |count: &str| Command::new(env!("CARGO_BIN_EXE_folio-cli"))
+        .args(["save-proof-plan", "12x15L", count]).arg(&path).output().unwrap();
+    let invalid = run("40");
+    assert_eq!(invalid.status.code(), Some(2));
+    assert!(!path.exists());
+    let first = run("39");
+    assert!(first.status.success(), "{}", String::from_utf8_lossy(&first.stderr));
+    let bytes = std::fs::read(&path).unwrap();
+    let plan: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(plan["proofOnly"], true);
+    assert_eq!(plan["units"].as_array().unwrap().len(), 41);
+    let overwrite = run("1");
+    assert_eq!(overwrite.status.code(), Some(2));
+    assert!(overwrite.stdout.is_empty());
+    assert_eq!(std::fs::read(&path).unwrap(), bytes);
+    assert_eq!(std::fs::read_dir(&root).unwrap().count(), 1);
+    std::fs::remove_file(path).unwrap();
+    std::fs::remove_dir(root).unwrap();
+}
+
 fn validate(input: &[u8]) -> std::process::Output {
     let mut child = Command::new(env!("CARGO_BIN_EXE_folio-cli"))
         .arg("validate-crop").stdin(Stdio::piped()).stdout(Stdio::piped())

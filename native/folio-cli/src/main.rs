@@ -1,4 +1,4 @@
-use folio_core::{dimensions, interior_units, CanveraSize, InteriorUnit};
+use folio_core::CanveraSize;
 
 fn profile_json(args: &[String]) -> Result<String, &'static str> {
     if args.len() != 3 || args[0] != "inspect-profile" {
@@ -11,23 +11,29 @@ fn profile_json(args: &[String]) -> Result<String, &'static str> {
         _ => return Err("Unknown profile; expected 12x12, 12x15L or 12x18L"),
     };
     let count = args[2].parse::<u32>().map_err(|_| "Spread count must be an integer")?;
-    let units = interior_units(count).map_err(|_| "Product spread count must be 1..39")?;
-    let template = size.template();
-    let entries: Vec<String> = units.iter().enumerate().map(|(i, unit)| {
-        let pixels = dimensions(template, *unit);
-        let kind = match unit {
-            InteriorUnit::FirstSingle => "firstSingle",
-            InteriorUnit::Spread => "spread",
-            InteriorUnit::LastSingle => "lastSingle",
-        };
-        format!("{{\"index\":{},\"kind\":\"{}\",\"widthPx\":{},\"heightPx\":{}}}", i+1, kind, pixels.width, pixels.height)
-    }).collect();
-    // All strings below are fixed literals or allowlisted profile names.
-    Ok(format!("{{\"profile\":\"{}\",\"dpi\":300,\"physicalPages\":{},\"structureProvisional\":true,\"productionCoverAllowed\":false,\"units\":[{}]}}", args[1], count*2+2, entries.join(",")))
+    let plan = folio_core::export_plan::geometry_proof(size, count)
+        .map_err(|_| "Product spread count must be 1..39")?;
+    serde_json::to_string(&plan).map_err(|_| "Cannot serialize proof plan")
 }
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().map(String::as_str) == Some("save-proof-plan") {
+        if args.len() != 4 {
+            eprintln!("Usage: folio-cli save-proof-plan <12x12|12x15L|12x18L> <spread-count:1..39> <new-json-path>");
+            std::process::exit(2);
+        }
+        let profile_args = vec!["inspect-profile".to_owned(), args[1].clone(), args[2].clone()];
+        let result = profile_json(&profile_args).map_err(str::to_owned).and_then(|json| {
+            folio_core::publication::write_new(std::path::Path::new(&args[3]), json.as_bytes())
+                .map_err(|e| format!("Cannot publish proof plan: {e}"))
+        });
+        match result {
+            Ok(()) => println!("{{\"saved\":true,\"proofOnly\":true}}"),
+            Err(error) => { eprintln!("{error}"); std::process::exit(2); }
+        }
+        return;
+    }
     if args.first().map(String::as_str) == Some("fingerprint") {
         if args.len() != 3 { eprintln!("Usage: folio-cli fingerprint <source-root> <relative-path>"); std::process::exit(2); }
         match folio_core::source_path::fingerprint(std::path::Path::new(&args[1]), &args[2]) {

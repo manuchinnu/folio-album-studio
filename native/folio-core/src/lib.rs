@@ -5,6 +5,8 @@ pub mod safety;
 pub mod crop;
 pub mod grid;
 pub mod source_path;
+pub mod export_plan;
+pub mod publication;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Pixels {

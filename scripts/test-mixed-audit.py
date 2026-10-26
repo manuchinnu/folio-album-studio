@@ -2,6 +2,7 @@
 import importlib.util
 from pathlib import Path
 import unittest
+import json
 import tempfile
 import pikepdf
 from PIL import Image, ImageCms
@@ -12,6 +13,22 @@ spec.loader.exec_module(mixed)
 
 
 class MixedAuditTests(unittest.TestCase):
+    def test_frozen_maximum_product_expectations(self):
+        path = Path(__file__).resolve().parents[1] / 'fixtures/audit/canvera-12x15L-80page-proof.json'
+        config = json.loads(path.read_text(encoding='utf-8'))
+        mixed.validate_config(config)
+        units = config['units']
+        self.assertEqual(len(units), 41)
+        for index, unit in enumerate(units):
+            single = index in (0, 40)
+            self.assertEqual(unit['jpeg'], f'{index + 1:03d}.jpg')
+            self.assertEqual(unit['pixels'], [4394 if single else 8787, 3520])
+            for key in ('mediaBox', 'trimBox', 'bleedBox'):
+                self.assertEqual(unit[key], [0, 0, 1054.56 if single else 2108.88, 844.8])
+            # A renderer that doubles single width must fail this independent input.
+            if not single:
+                self.assertTrue(mixed.geometry_errors(unit, (8788, 3520), unit))
+
     def test_real_files_inventory_icc_and_pixel_mutations(self):
         # Tests audit I/O only; blank PDF pages are not renderer evidence.
         scratch = Path(__file__).resolve().parents[1] / 'artifacts'
