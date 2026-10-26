@@ -1,0 +1,54 @@
+{
+  "id": "synthetic-a4-proof",
+  "name": "SYNTHETIC A4 / ENGINEERING PROOF - NOT LAB READY",
+  "version": 1,
+  "verification": "synthetic",
+  "trim": {
+    "w": 210,
+    "h": 297
+  },
+  "bleed": {
+    "top": 3,
+    "right": 3,
+    "bottom": 3,
+    "left": 3
+  },
+  "safe": 10,
+  "gutter": 12,
+  "ppi": 300,
+  "dpi": {
+    "redBelow": 200,
+    "green": 300
+  },
+  "pages": {
+    "min": 2,
+    "max": 200,
+    "multiple": 2
+  },
+  "binding": "perfect-bound",
+  "spine": {
+    "thicknessPerLeafMm": 0.25,
+    "fixedMm": 1
+  },
+  "maxFileBytes": 104857600,
+  "evidence": [
+    "Synthetic values for engineering validation. No print vendor certification."
+  ],
+  "exportUnit": "page",
+  "centreSafeMm": 0,
+  "coverProfile": {
+    "spineModel": "formula",
+    "wrap": {
+      "top": 0,
+      "right": 0,
+      "bottom": 0,
+      "left": 0
+    },
+    "bleed": {
+      "top": 3,
+      "right": 3,
+      "bottom": 3,
+      "left": 3
+    }
+  }
+}

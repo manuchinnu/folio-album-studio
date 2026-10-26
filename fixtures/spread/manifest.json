@@ -1,0 +1,10 @@
+{
+  "id": "spread-panorama",
+  "relativePath": "fixtures/spread/panorama.jpg",
+  "sha256": "e322e4498e27c2de8312db288653bbae38c250880cd73d69c4112a6e76f68a98",
+  "width": 9071,
+  "height": 3671,
+  "mime": "image/jpeg",
+  "faces": [],
+  "analysis": "complete"
+}

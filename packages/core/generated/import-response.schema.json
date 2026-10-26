@@ -1,0 +1,296 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "type": "object",
+  "properties": {
+    "protocolVersion": {
+      "const": 1,
+      "type": "number"
+    },
+    "images": {
+      "maxItems": 3000,
+      "type": "array",
+      "items": {
+        "additionalProperties": false,
+        "type": "object",
+        "properties": {
+          "relativePath": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "format": {
+            "anyOf": [
+              {
+                "const": "JPEG",
+                "type": "string"
+              },
+              {
+                "const": "PNG",
+                "type": "string"
+              },
+              {
+                "const": "WEBP",
+                "type": "string"
+              },
+              {
+                "const": "HEIF",
+                "type": "string"
+              }
+            ]
+          },
+          "width": {
+            "minimum": 1,
+            "maximum": 30000,
+            "type": "integer"
+          },
+          "height": {
+            "minimum": 1,
+            "maximum": 30000,
+            "type": "integer"
+          },
+          "orientation": {
+            "minimum": 1,
+            "maximum": 8,
+            "type": "integer"
+          },
+          "bytes": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "mtimeSeconds": {
+            "type": "number"
+          },
+          "proxyPath": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "iccSha256": {
+            "anyOf": [
+              {
+                "pattern": "^[a-f0-9]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "colorAssumption": {
+            "anyOf": [
+              {
+                "const": "embedded-icc",
+                "type": "string"
+              },
+              {
+                "const": "assumed-srgb",
+                "type": "string"
+              }
+            ]
+          },
+          "captureTime": {
+            "anyOf": [
+              {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "captureOffset": {
+            "anyOf": [
+              {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "camera": {
+            "anyOf": [
+              {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "gps": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "type": "object",
+                "properties": {
+                  "latitude": {
+                    "minimum": -90,
+                    "maximum": 90,
+                    "type": "number"
+                  },
+                  "longitude": {
+                    "minimum": -180,
+                    "maximum": 180,
+                    "type": "number"
+                  },
+                  "altitude": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "latitude",
+                  "longitude",
+                  "altitude"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dhash": {
+            "pattern": "^[a-f0-9]{16}$",
+            "type": "string"
+          },
+          "phash": {
+            "pattern": "^[a-f0-9]{16}$",
+            "type": "string"
+          },
+          "meanLuma": {
+            "minimum": 0,
+            "maximum": 255,
+            "type": "number"
+          },
+          "detail": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "maxLength": 4096,
+              "type": "string"
+            }
+          },
+          "xmp": {
+            "maxItems": 2,
+            "type": "array",
+            "items": {
+              "additionalProperties": false,
+              "type": "object",
+              "properties": {
+                "source": {
+                  "anyOf": [
+                    {
+                      "const": "embedded",
+                      "type": "string"
+                    },
+                    {
+                      "const": "sidecar",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "sourceFile": {
+                  "maxLength": 4096,
+                  "type": "string"
+                },
+                "fields": {
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": {
+                    "additionalProperties": false,
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "maxLength": 4096,
+                        "type": "string"
+                      },
+                      "raw": {
+                        "maxLength": 4096,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "raw"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "source",
+                "sourceFile",
+                "fields"
+              ]
+            }
+          }
+        },
+        "required": [
+          "relativePath",
+          "sha256",
+          "format",
+          "width",
+          "height",
+          "orientation",
+          "bytes",
+          "mtimeSeconds",
+          "proxyPath",
+          "iccSha256",
+          "colorAssumption",
+          "captureTime",
+          "captureOffset",
+          "camera",
+          "gps",
+          "dhash",
+          "phash",
+          "meanLuma",
+          "detail",
+          "warnings",
+          "xmp"
+        ]
+      }
+    },
+    "errors": {
+      "maxItems": 3000,
+      "type": "array",
+      "items": {
+        "additionalProperties": false,
+        "type": "object",
+        "properties": {
+          "relativePath": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "message": {
+            "maxLength": 4096,
+            "type": "string"
+          }
+        },
+        "required": [
+          "relativePath",
+          "message"
+        ]
+      }
+    }
+  },
+  "required": [
+    "protocolVersion",
+    "images",
+    "errors"
+  ]
+}

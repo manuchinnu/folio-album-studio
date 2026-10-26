@@ -1,0 +1,41 @@
+{
+  "assets": [
+    {
+      "id": "landscape-0",
+      "relativePath": "fixtures/media/landscape-0.jpg",
+      "sha256": "62874601c8751d12ae67d42e27f211e0f02c64b7803fab10783c0e58b6328976",
+      "width": 3000,
+      "height": 4000,
+      "mime": "image/jpeg",
+      "faces": [],
+      "analysis": "complete"
+    },
+    {
+      "id": "landscape-1",
+      "relativePath": "fixtures/media/landscape-1.jpg",
+      "sha256": "50bf08fbf70a232e10c035b2556134e26288ff6c0f74898ac3697a56d605ac46",
+      "width": 3000,
+      "height": 4000,
+      "mime": "image/jpeg",
+      "faces": [],
+      "analysis": "complete"
+    },
+    {
+      "id": "landscape-2",
+      "relativePath": "fixtures/media/landscape-2.jpg",
+      "sha256": "1db67ff4e0b14db8750e6f28d32bd9eed4bed82f3254a5c1bb2f71dfc9381dd0",
+      "width": 3000,
+      "height": 4000,
+      "mime": "image/jpeg",
+      "faces": [],
+      "analysis": "complete"
+    }
+  ],
+  "fonts": [
+    {
+      "id": "Vera",
+      "relativePath": "fixtures/media/Vera.ttf",
+      "sha256": "c4c45690b345435b2cba52ecabe275f05e49b389b39fe68ad03afbb551288d3d"
+    }
+  ]
+}

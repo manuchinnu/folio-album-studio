@@ -1,0 +1,25 @@
+import { Type, type Static } from '@sinclair/typebox';
+import { Value } from '@sinclair/typebox/value';
+const obj = <T extends Record<string, any>>(properties:T) => Type.Object(properties,{additionalProperties:false});
+const num = (min=0,max=10000) => Type.Number({minimum:min,maximum:max});
+const id = Type.String({minLength:1,maxLength:120,pattern:'^[a-zA-Z0-9_.-]+$'});
+const color = Type.String({pattern:'^#[0-9a-fA-F]{6}$'});
+export const RectSchema=obj({x:num(-2000),y:num(-2000),w:num(.001),h:num(.001)});
+export const CropSchema=obj({x:num(0,1),y:num(0,1),w:num(.0001,1),h:num(.0001,1)});
+const EdgesSchema=obj({top:num(0,60),right:num(0,60),bottom:num(0,60),left:num(0,60)});
+export const CoverProfileSchema=Type.Union([Type.Null(),obj({spineModel:Type.Literal('formula'),wrap:EdgesSchema,bleed:EdgesSchema}),obj({spineModel:Type.Literal('lab_table'),entries:Type.Array(obj({sheets:Type.Integer({minimum:1,maximum:500}),frontWidthMm:num(20,1000),backWidthMm:num(20,1000),heightMm:num(20,1000),spineMm:num(0,100),wrap:EdgesSchema,bleed:EdgesSchema}))})]);
+export const LabSchema=obj({id,exportUnit:Type.Union([Type.Literal('page'),Type.Literal('spread')]),centreSafeMm:num(0,60),coverProfile:CoverProfileSchema,name:Type.String(),version:Type.Integer({minimum:1}),verification:Type.Union([Type.Literal('synthetic'),Type.Literal('unverified'),Type.Literal('official'),Type.Literal('user')]),trim:obj({w:num(20,1000),h:num(20,1000)}),bleed:obj({top:num(0,30),right:num(0,30),bottom:num(0,30),left:num(0,30)}),safe:num(0,60),gutter:num(0,60),ppi:Type.Integer({minimum:72,maximum:600}),dpi:obj({redBelow:num(72,600),green:num(72,600)}),pages:obj({min:Type.Integer({minimum:1}),max:Type.Integer({minimum:1,maximum:1000}),multiple:Type.Integer({minimum:1,maximum:32})}),binding:Type.Union([Type.Literal('perfect-bound'),Type.Literal('layflat'),Type.Literal('spiral')]),spine:obj({thicknessPerLeafMm:num(0,10),fixedMm:num(0,50)}),maxFileBytes:Type.Integer({minimum:1024}),evidence:Type.Array(Type.String())});
+export const AssetSchema=obj({id,relativePath:Type.String({minLength:1,maxLength:500}),sha256:Type.String({pattern:'^[a-f0-9]{64}$'}),width:Type.Integer({minimum:1,maximum:30000}),height:Type.Integer({minimum:1,maximum:30000}),mime:Type.Union([Type.Literal('image/jpeg'),Type.Literal('image/png')]),faces:Type.Array(CropSchema),analysis:Type.Union([Type.Literal('complete'),Type.Literal('pending')])});
+export const FontSchema=obj({id,relativePath:Type.String(),sha256:Type.String({pattern:'^[a-f0-9]{64}$'})});
+export const ImageSchema=obj({type:Type.Literal('image'),id,assetId:id,rect:RectSchema,crop:CropSchema});
+export const TextSchema=obj({type:Type.Literal('text'),id,text:Type.String({maxLength:2000}),rect:RectSchema,fontId:id,fontSizeMm:num(.5,80),color});
+export const FillSchema=obj({type:Type.Literal('fill'),id,rect:RectSchema,color});
+export const ElementSchema=Type.Union([ImageSchema,TextSchema,FillSchema]);
+export const PageSchema=obj({id,side:Type.Union([Type.Literal('left'),Type.Literal('right'),Type.Literal('spread'),Type.Literal('cover')]),widthMm:num(20,2500),heightMm:num(20,1000),background:color,elements:Type.Array(ElementSchema,{maxItems:500})});
+export const ProjectSchema=obj({schemaVersion:Type.Literal(2),id,title:Type.String({maxLength:500}),lab:LabSchema,assets:Type.Array(AssetSchema,{maxItems:3000}),fonts:Type.Array(FontSchema,{maxItems:100}),pages:Type.Array(PageSchema,{minItems:1,maxItems:1000}),cover:Type.Union([PageSchema,Type.Null()])});
+export const RequestSchema=obj({protocolVersion:Type.Literal(1),jobId:id,operation:Type.Union([Type.Literal('validate'),Type.Literal('export')]),project:ProjectSchema,proof:Type.Boolean(),cancelled:Type.Boolean()});
+export type Rect=Static<typeof RectSchema>; export type Crop=Static<typeof CropSchema>;
+export type Lab=Static<typeof LabSchema>; export type Asset=Static<typeof AssetSchema>;
+export type Element=Static<typeof ElementSchema>; export type Page=Static<typeof PageSchema>;
+export type Project=Static<typeof ProjectSchema>; export type Request=Static<typeof RequestSchema>;
+export function parseRequest(value:unknown):Request {if(!Value.Check(RequestSchema,value))throw new Error([...Value.Errors(RequestSchema,value)].map(e=>`${e.path}: ${e.message}`).join('; '));return value;}

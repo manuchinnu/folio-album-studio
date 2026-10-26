@@ -1,0 +1,80 @@
+name: Core and native contract
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: folio-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  contract:
+    strategy:
+      matrix:
+        os: ${{ fromJSON((github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/milestone-')) && '["ubuntu-latest","windows-latest","macos-latest"]' || '["ubuntu-latest","windows-latest"]') }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Rust core
+        shell: bash
+        run: |
+          rustup toolchain install 1.85.1 --profile minimal
+          cargo +1.85.1 test --manifest-path native/Cargo.toml --workspace --locked
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci --no-audit --no-fund
+      - run: python -m venv .venv
+      - name: Install native dependencies
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then PY=.venv/Scripts/python; else PY=.venv/bin/python; fi
+          "$PY" -m pip install -r requirements.txt
+          "$PY" scripts/create-fixtures.py
+          "$PY" scripts/create-import-fixtures.py
+          "$PY" scripts/test-mixed-audit.py
+      - name: Verify with retained text log
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          npm run verify 2>&1 | tee artifacts/verification.txt
+      - name: Assert native Mac architecture
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          test "$(uname -m)" = arm64
+          node -e "console.log(process.arch); if(process.arch !== 'arm64') process.exit(1)"
+          .venv/bin/python -c "import platform; print(platform.machine()); assert platform.machine() == 'arm64'"
+      - name: Export and independently audit 40 pages
+        shell: bash
+        run: |
+          npm run demo -- 40
+          if [ "$RUNNER_OS" = Windows ]; then PY=.venv/Scripts/python; else PY=.venv/bin/python; fi
+          DIR=$(node --input-type=module -e 'import fs from "node:fs"; process.stdout.write(JSON.parse(fs.readFileSync("artifacts/latest-result.json", "utf8")).directory)')
+          "$PY" scripts/inspect-pdf.py "$DIR" --expected-pages 40
+      - name: Largest 40-spread benchmark (Windows and native Mac)
+        if: runner.os != 'Linux'
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then PY=.venv/Scripts/python; else PY=.venv/bin/python; fi
+          "$PY" scripts/create-spread-fixture.py
+          npx --no-install tsx apps/cli/spread-demo.ts
+          DIR=$(node --input-type=module -e 'import fs from "node:fs"; process.stdout.write(JSON.parse(fs.readFileSync("artifacts/latest-result.json", "utf8")).directory)')
+          "$PY" scripts/inspect-pdf.py "$DIR" --expected-pages 40 --spread-12x15
+          "$PY" scripts/preview-spread.py "$DIR"
+          node --input-type=module -e 'import fs from "node:fs"; const r=JSON.parse(fs.readFileSync("artifacts/latest-result.json")); if(r.metrics.combinedSampledPeakBoundBytes>2147483648) throw Error("Memory gate exceeded");'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: print-evidence-${{ matrix.os }}
+          retention-days: 3
+          path: |
+            artifacts/**/*.json
+            artifacts/**/*.txt
+            artifacts/**/review-*.jpg

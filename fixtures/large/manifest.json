@@ -1,0 +1,10 @@
+{
+  "id": "large-panorama",
+  "relativePath": "fixtures/large/panorama.jpg",
+  "sha256": "ffcf043e0679dfd7fa16f324f8f549b74b68caff44ffcb8a702147ce8f0fc639",
+  "width": 7392,
+  "height": 3732,
+  "mime": "image/jpeg",
+  "faces": [],
+  "analysis": "complete"
+}

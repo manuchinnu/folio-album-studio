@@ -1,0 +1,16 @@
+import {mkdir,writeFile,rename,realpath} from 'node:fs/promises';import {resolve,join,relative,dirname,isAbsolute} from 'node:path';import {randomUUID} from 'node:crypto';
+import {enumeratePhotos,inspectPhotos} from './import-port.js';import {collectMetadata} from './metadata-port.js';
+import {selectBaseline,type Candidate} from '../../packages/core/curation.js';
+const input=process.argv[2];if(!input)throw new Error('Usage: npm run import -- <source-folder> [new-project-folder]');
+const output=resolve(process.argv[3]??'artifacts/library-'+randomUUID());
+const controller=new AbortController();process.once('SIGINT',()=>controller.abort());
+const started=performance.now();const enumeration=await enumeratePhotos(input,controller.signal);
+await mkdir(dirname(output),{recursive:true});const outputParent=await realpath(dirname(output));const inside=relative(enumeration.root,outputParent);if(inside===''||(!isAbsolute(inside)&&inside!=='..'&&!inside.startsWith('..\\')&&!inside.startsWith('../')))throw new Error('Choose a project destination outside the source folder');
+await mkdir(output,{recursive:false});
+const inspected=await inspectPhotos(enumeration,join(output,'proxies'),controller.signal);const metadata=await collectMetadata(enumeration.root,inspected.images,controller.signal);
+controller.signal.throwIfAborted();
+const candidates:Candidate[]=inspected.images.map(image=>{const time=metadata.records.find(m=>m.relativePath===image.relativePath)?.time.selected?.value;return {id:image.relativePath,sha256:image.sha256,phash:image.phash,timeSeconds:time?.epochSeconds??(time?.precision==='second'?Date.parse(time.local+'Z')/1000:null),timeBasis:time?.timezone==='known'?'utc':time?.precision==='second'?'local':'unknown',meanLuma:image.meanLuma,detail:image.detail,width:image.width,height:image.height}});
+const curation=selectBaseline(candidates,80);
+const manifest={schemaVersion:1,kind:'folio-import-checkpoint',sourceRoot:enumeration.root,images:inspected.images,metadata,curation,errors:inspected.errors,skipped:enumeration.skipped,elapsedSeconds:(performance.now()-started)/1000};
+const temporary=join(output,'library.json.tmp');await writeFile(temporary,JSON.stringify(manifest,null,2));await rename(temporary,join(output,'library.json'));
+console.log(JSON.stringify({output,imported:inspected.images.length,errors:inspected.errors.length,skipped:enumeration.skipped.length,elapsedSeconds:manifest.elapsedSeconds,scope:'Import checkpoint only; album generation and persistent project storage are not yet implemented'},null,2));

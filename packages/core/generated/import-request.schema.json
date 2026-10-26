@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "type": "object",
+  "properties": {
+    "protocolVersion": {
+      "const": 1,
+      "type": "number"
+    },
+    "paths": {
+      "maxItems": 3000,
+      "type": "array",
+      "items": {
+        "minLength": 1,
+        "maxLength": 1024,
+        "type": "string"
+      }
+    },
+    "proxySize": {
+      "minimum": 128,
+      "maximum": 1024,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "protocolVersion",
+    "paths",
+    "proxySize"
+  ]
+}
