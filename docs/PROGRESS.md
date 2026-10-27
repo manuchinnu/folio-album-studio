@@ -264,3 +264,11 @@ Added Gray8-to-sRGB using GRAY_8 input transform (not RGB expansion before ICC),
 
 ## 2026-10-27 color checkpoint for cross-platform CI
 Added independent gamma2.2-to-sRGB analytic ramp control (within2integer codes); all31Rust tests pass. Refreshed locked inventory51packages, no missing metadata. Preparing bundled LittleCMS RGB/RGBA/gray paths for remote CI; P3 measured parity and renderer still unfinished. Quota96%primary57%weekly.
+
+## 2026-10-27 normalized decoder executable path
+
+CI40470296743 at88c0e1d completed successfully for the bundled LittleCMS checkpoint. Added normalize_tagged8 dispatch for RGB8/RGBA8/Gray8 and inspect-normalized-image executable command; unsupported sample types fail explicitly. Full31Rust tests pass. Extended synthetic executable smoke to exercise normalization, expected dimensions and output ICC; smoke passes locally. No personal media used. P3/reference DeltaE, gray-alpha/high-bit-depth, untagged policy and actual Rust export remain unfinished; no spike acceptance claim. Quota86%primary56%weekly at start. Current normalized-command changes are local pending the next coherent commit.
+
+## 2026-10-27 gray-alpha ICC path
+
+Added GrayAlpha8 normalization and dispatcher support, transforming gray through its ICC while retaining every straight-alpha value. Synthetic 257x5 test covers partial batches, all alpha values and matching gray-only conversion. All32Rust tests and normalized executable smoke pass. Quota70%primary53%weekly. High-bit-depth, untagged policy, measured P3 parity and actual Rust export remain pending. No personal media used.
