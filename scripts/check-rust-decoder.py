@@ -60,13 +60,30 @@ with tempfile.TemporaryDirectory(prefix='folio-synthetic16-', dir=root / 'artifa
         capture_output=True, text=True)
     assert checked.returncode == 0, checked.stderr
     samples = json.loads(checked.stdout)['samples']
+    assert json.loads(checked.stdout)['assumedSrgb'] is False
     reference = ImageCms.profileToProfile(cube, ImageCms.ImageCmsProfile(io.BytesIO(icc)),
-        ImageCms.createProfile('sRGB'), renderingIntent=1, outputMode='RGB').tobytes()
+        ImageCms.createProfile('sRGB'), renderingIntent=1, outputMode='RGB', flags=ImageCms.Flags.BLACKPOINTCOMPENSATION).tobytes()
     assert len(samples) == len(reference)
     errors = [abs(a-b) for a,b in zip(samples, reference)]
     assert max(errors) <= 1, max(errors)
     reference_result = {'pixels': 1024, 'profile': 'sRGB', 'maxChannelError': max(errors),
         'meanChannelError': sum(errors) / len(errors), 'reference': 'Pillow ImageCms relative colorimetric'}
+    untagged_path = Path(temporary) / 'untagged.png'
+    cube.save(untagged_path)
+    untagged = subprocess.run([str(binary), 'sample-normalized-image', temporary,
+        untagged_path.name, hashlib.sha256(untagged_path.read_bytes()).hexdigest(), '1000000', '4096'],
+        capture_output=True, text=True)
+    assert untagged.returncode == 0, untagged.stderr
+    untagged_info = json.loads(untagged.stdout)
+    assert untagged_info['assumedSrgb'] is True
+    assert untagged_info['samples'] == list(cube.tobytes())
+    # A present but malformed ICC must not be treated as an absent profile.
+    malformed_path = Path(temporary) / 'malformed-profile.png'
+    cube.save(malformed_path, icc_profile=b'invalid-profile')
+    malformed = subprocess.run([str(binary), 'sample-normalized-image', temporary,
+        malformed_path.name, hashlib.sha256(malformed_path.read_bytes()).hexdigest(), '1000000', '4096'],
+        capture_output=True, text=True)
+    assert malformed.returncode == 2 and not malformed.stdout and malformed.stderr
     for color_type, channels, expected in [(2, 3, 'Rgb16'), (6, 4, 'Rgba16')]:
         pixels = [12345, 23456, 34567] + ([45678] if channels == 4 else [])
         scanline = b'\0' + struct.pack('>' + 'H' * channels, *pixels)
@@ -95,6 +112,7 @@ out.write_text(json.dumps({'passed': True, 'syntheticPng': result,
     'normalizedSyntheticPng': normalized_result,
     'normalized16BitPng': depth_results,
     'srgbReferenceComparison': reference_result,
-    'rejected': ['encoded-byte-budget', 'changed-source-identity', 'diagnostic-pixel-cap'],
+    'untaggedRgbAssumptionVerified': True,
+    'rejected': ['encoded-byte-budget', 'changed-source-identity', 'diagnostic-pixel-cap', 'malformed-icc'],
     'scope': 'Decoder smoke only; no color or rendering parity claim'}, indent=2) + '\n')
 print('Rust decoder synthetic smoke passed')

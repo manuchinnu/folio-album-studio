@@ -31,16 +31,16 @@ fn main() {
             .and_then(|(bytes,pixels)| folio_core::decode::verified_oriented(
                 std::path::Path::new(&args[1]), &args[2], &args[3], bytes,
                 if sample { pixels.min(4096) } else { pixels }))
-            .and_then(|image| if normalized { folio_core::color::normalize_tagged(image) } else { Ok(image) });
+            .and_then(|image| if normalized { folio_core::color::normalize_with_provenance(image) } else { Ok((image, false)) });
         match result {
-            Ok(image) => {
+            Ok((image, assumed_srgb)) => {
                 let samples = if sample { folio_core::color::sample_values(&image) } else { serde_json::Value::Null };
                 println!("{}", serde_json::json!({
                 "width":image.pixels.width(), "height":image.pixels.height(),
                 "colorType":format!("{:?}", image.pixels.color()),
                 "iccBytes":image.icc_profile.as_ref().map_or(0, Vec::len),
                 "orientationApplied":true, "colorNormalized":normalized,
-                "samples": samples
+                "samples": samples, "assumedSrgb": assumed_srgb
             })); },
             Err(error) => { eprintln!("{error}"); std::process::exit(2); }
         }

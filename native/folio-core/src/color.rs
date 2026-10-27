@@ -1,6 +1,22 @@
 //! ICC conversion preserving supported sample depth and straight alpha.
 use lcms2::{Intent, PixelFormat, Profile, Transform};
 
+/// Explicit untagged RGB policy; callers must retain/display the assumption flag.
+/// An invalid supplied ICC is never replaced by an assumed profile.
+pub fn normalize_with_provenance(mut input: crate::decode::OrientedImage)
+    -> Result<(crate::decode::OrientedImage, bool), String> {
+    let assumed_srgb = input.icc_profile.is_none();
+    if assumed_srgb {
+        if !matches!(&input.pixels, image::DynamicImage::ImageRgb8(_) |
+            image::DynamicImage::ImageRgba8(_) | image::DynamicImage::ImageRgb16(_) |
+            image::DynamicImage::ImageRgba16(_)) {
+            return Err("Untagged non-RGB source requires an explicit compatible profile".into());
+        }
+        input.icc_profile = Some(Profile::new_srgb().icc().map_err(|e| e.to_string())?);
+    }
+    Ok((normalize_tagged(input)?, assumed_srgb))
+}
+
 /// Small diagnostic samples for independent parity tooling, never full albums.
 pub fn sample_values(input: &crate::decode::OrientedImage) -> serde_json::Value {
     if u64::from(input.pixels.width()) * u64::from(input.pixels.height()) > 4096 {
@@ -55,7 +71,7 @@ pub fn normalize_gray16(input: crate::decode::OrientedImage)
     let target = Profile::new_icc(&output_icc).map_err(|e| e.to_string())?;
     let transform: Transform<u16, [u16; 3]> = Transform::new_flags(
         &source, PixelFormat::GRAY_16, &target, PixelFormat::RGB_16,
-        Intent::RelativeColorimetric, lcms2::Flags::NO_OPTIMIZE).map_err(|e| e.to_string())?;
+        Intent::RelativeColorimetric, lcms2::Flags::NO_OPTIMIZE | lcms2::Flags::BLACKPOINT_COMPENSATION).map_err(|e| e.to_string())?;
     let (samples, channels): (&[u16], usize) = match &input.pixels {
         image::DynamicImage::ImageLuma16(p) => (p.as_raw(), 1),
         image::DynamicImage::ImageLumaA16(p) => (p.as_raw(), 2),
@@ -95,9 +111,9 @@ pub fn normalize_rgb16(mut input: crate::decode::OrientedImage)
     let output_icc = target.icc().map_err(|e| e.to_string())?;
     // Transform to the exact serialized profile shipped with the pixels.
     let target = Profile::new_icc(&output_icc).map_err(|e| e.to_string())?;
-    let transform: Transform<[u16; 3], [u16; 3]> = Transform::new(
+    let transform: Transform<[u16; 3], [u16; 3]> = Transform::new_flags(
         &source, PixelFormat::RGB_16, &target, PixelFormat::RGB_16,
-        Intent::RelativeColorimetric).map_err(|e| e.to_string())?;
+        Intent::RelativeColorimetric, lcms2::Flags::BLACKPOINT_COMPENSATION).map_err(|e| e.to_string())?;
     let (samples, channels): (&mut [u16], usize) = match &mut input.pixels {
         image::DynamicImage::ImageRgb16(pixels) => (pixels.as_mut(), 3),
         image::DynamicImage::ImageRgba16(pixels) => (pixels.as_mut(), 4),
@@ -129,9 +145,9 @@ pub fn normalize_gray_alpha8(input: crate::decode::OrientedImage)
     let source = Profile::new_icc(&icc).map_err(|e| format!("Invalid source ICC: {e}"))?;
     let target = Profile::new_srgb();
     let output_icc = target.icc().map_err(|e| e.to_string())?;
-    let transform: Transform<u8, [u8; 3]> = Transform::new(
+    let transform: Transform<u8, [u8; 3]> = Transform::new_flags(
         &source, PixelFormat::GRAY_8, &target, PixelFormat::RGB_8,
-        Intent::RelativeColorimetric).map_err(|e| e.to_string())?;
+        Intent::RelativeColorimetric, lcms2::Flags::BLACKPOINT_COMPENSATION).map_err(|e| e.to_string())?;
     let count = pixels.as_raw().len().checked_mul(2).ok_or("RGBA size overflow")?;
     let mut output = Vec::new();
     output.try_reserve_exact(count).map_err(|_| "Cannot allocate gray-alpha conversion")?;
@@ -165,9 +181,9 @@ pub fn normalize_gray8(input: crate::decode::OrientedImage)
     let source = Profile::new_icc(&icc).map_err(|e| format!("Invalid source ICC: {e}"))?;
     let target = Profile::new_srgb();
     let output_icc = target.icc().map_err(|e| e.to_string())?;
-    let transform: Transform<u8, [u8; 3]> = Transform::new(
+    let transform: Transform<u8, [u8; 3]> = Transform::new_flags(
         &source, PixelFormat::GRAY_8, &target, PixelFormat::RGB_8,
-        Intent::RelativeColorimetric).map_err(|e| e.to_string())?;
+        Intent::RelativeColorimetric, lcms2::Flags::BLACKPOINT_COMPENSATION).map_err(|e| e.to_string())?;
     let count = pixels.as_raw().len().checked_mul(3).ok_or("RGB size overflow")?;
     let mut output = Vec::new();
     output.try_reserve_exact(count).map_err(|_| "Cannot allocate grayscale conversion")?;
@@ -196,9 +212,9 @@ pub fn normalize_rgba8(input: crate::decode::OrientedImage)
     let source = Profile::new_icc(&icc).map_err(|e| format!("Invalid source ICC: {e}"))?;
     let target = Profile::new_srgb();
     let output_icc = target.icc().map_err(|e| e.to_string())?;
-    let transform: Transform<[u8; 3], [u8; 3]> = Transform::new(
+    let transform: Transform<[u8; 3], [u8; 3]> = Transform::new_flags(
         &source, PixelFormat::RGB_8, &target, PixelFormat::RGB_8,
-        Intent::RelativeColorimetric).map_err(|e| e.to_string())?;
+        Intent::RelativeColorimetric, lcms2::Flags::BLACKPOINT_COMPENSATION).map_err(|e| e.to_string())?;
     let mut batch = [[0u8; 3]; 1024];
     for bytes in pixels.as_mut().chunks_mut(4096) {
         let count = bytes.len() / 4;
@@ -225,9 +241,9 @@ pub fn normalize_rgb8(input: crate::decode::OrientedImage)
     let source = Profile::new_icc(&icc).map_err(|e| format!("Invalid source ICC: {e}"))?;
     let target = Profile::new_srgb();
     let output_icc = target.icc().map_err(|e| e.to_string())?;
-    let transform: Transform<[u8; 3], [u8; 3]> = Transform::new(
+    let transform: Transform<[u8; 3], [u8; 3]> = Transform::new_flags(
         &source, PixelFormat::RGB_8, &target, PixelFormat::RGB_8,
-        Intent::RelativeColorimetric).map_err(|e| e.to_string())?;
+        Intent::RelativeColorimetric, lcms2::Flags::BLACKPOINT_COMPENSATION).map_err(|e| e.to_string())?;
     let mut batch = [[0u8; 3]; 1024];
     for bytes in pixels.as_mut().chunks_mut(3072) {
         let count = bytes.len() / 3;
@@ -247,9 +263,9 @@ pub fn normalize_rgb8(input: crate::decode::OrientedImage)
 pub fn rgb8_to_srgb(pixels: &mut [[u8; 3]], source_icc: &[u8]) -> Result<(), String> {
     let source = Profile::new_icc(source_icc).map_err(|e| format!("Invalid source ICC: {e}"))?;
     let target = Profile::new_srgb();
-    let transform: Transform<[u8; 3], [u8; 3]> = Transform::new(
+    let transform: Transform<[u8; 3], [u8; 3]> = Transform::new_flags(
         &source, PixelFormat::RGB_8, &target, PixelFormat::RGB_8,
-        Intent::RelativeColorimetric).map_err(|e| format!("Cannot convert source ICC: {e}"))?;
+        Intent::RelativeColorimetric, lcms2::Flags::BLACKPOINT_COMPENSATION).map_err(|e| format!("Cannot convert source ICC: {e}"))?;
     transform.transform_in_place(pixels);
     Ok(())
 }
@@ -257,6 +273,40 @@ pub fn rgb8_to_srgb(pixels: &mut [[u8; 3]], source_icc: &[u8]) -> Result<(), Str
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn assumed_srgb_is_explicit_and_does_not_hide_invalid_icc() {
+        let pixels = image::RgbImage::from_pixel(2,1,image::Rgb([12,100,200]));
+        let (result, assumed) = normalize_with_provenance(crate::decode::OrientedImage {
+            pixels:pixels.clone().into(), icc_profile:None }).unwrap();
+        assert!(assumed);
+        assert_eq!(result.pixels.as_rgb8().unwrap(), &pixels);
+        let (_, assumed) = normalize_with_provenance(result).unwrap();
+        assert!(!assumed);
+        assert!(normalize_with_provenance(crate::decode::OrientedImage {
+            pixels:pixels.into(), icc_profile:Some(vec![]) }).is_err());
+        assert!(normalize_with_provenance(crate::decode::OrientedImage {
+            pixels:image::GrayImage::new(1,1).into(), icc_profile:None }).is_err());
+    }
+    #[test]
+    fn linear_rgb_profile_is_converted_not_merely_retagged() {
+        let xy = |x,y| lcms2::CIExyY { x,y,Y:1.0 };
+        let curve = lcms2::ToneCurve::new(1.0);
+        let profile = Profile::new_rgb(&xy(0.3127,0.3290), &lcms2::CIExyYTRIPLE {
+            Red:xy(0.64,0.33), Green:xy(0.30,0.60), Blue:xy(0.15,0.06),
+        }, &[&curve,&curve,&curve]).unwrap().icc().unwrap();
+        let pixels = image::RgbImage::from_fn(256,1, |x,_| image::Rgb([x as u8;3]));
+        let (output,_) = normalize_rgb8(crate::decode::OrientedImage {
+            pixels:pixels.into(), icc_profile:Some(profile) }).unwrap();
+        for x in 0..256 {
+            let linear = x as f64 / 255.0;
+            let expected = if linear <= 0.0031308 { 12.92 * linear }
+                else { 1.055 * linear.powf(1.0/2.4) - 0.055 };
+            for c in 0..3 {
+                assert!((f64::from(output.get_pixel(x,0)[c]) - expected * 255.0).abs() <= 2.0);
+            }
+        }
+        assert!(output.get_pixel(128,0)[0] > 180);
+    }
     #[test]
     fn gray16_transfer_and_alpha_preserve_precision() {
         let profile = Profile::new_gray(&lcms2::CIExyY { x:0.3127, y:0.3290, Y:1.0 },

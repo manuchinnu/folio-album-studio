@@ -294,3 +294,15 @@ Added sample-normalized-image diagnostic capped at4096pixels before decode, expo
 
 ## 2026-10-28 reference sample validation
 Added independent Pillow ImageCms relative-colorimetric comparison for a1024pixel synthetic sRGB cube and negative control proving diagnostic4096pixel cap overrides larger caller budgets. Extended smoke passes, including encoded16bit sample checks. This is channel-code validation on sRGB only, not P3 DeltaE or spike acceptance. Quota89%primary43%weekly. Preparing sample diagnostics and smoke coverage for CI; no personal media used.
+
+## 2026-10-28 non-identity ICC control
+Added synthetic linear-RGB profile ramp checked against analytic sRGB transfer within2codes. Mid-gray must brighten, catching accidental ICC retagging without conversion. All35Rust tests pass. This extends conversion evidence, not P3/reference DeltaE acceptance. Quota81%primary42%weekly; no personal media or reset credits used. Rendering and remaining spike gates still pending.
+
+## 2026-10-28 black-point compensation alignment
+Rechecked plan v3 color contract: relative colorimetric requires black-point compensation. Enabled this flag in every Rust ICC path and Pillow comparison, retaining direct gray16 evaluation. All35Rust tests and synthetic sample checks pass. Existing fixtures do not prove behavior for raised-black profiles; add such coverage with P3 parity work. Untagged provenance policy and rendering remain pending. Quota73%primary40%weekly. Changes saved locally.
+
+## 2026-10-28 explicit RGB assumption provenance
+Added normalize_with_provenance and CLI assumedSrgb field. Untagged RGB8/RGBA8/RGB16/RGBA16 assumes sRGB explicitly; supplied malformed ICC still fails. Untagged grayscale remains blocked pending compatible gray interpretation, not silently assigned RGB ICC. All36Rust tests and smoke pass. UI/persistent source provenance still needs wiring; this diagnostic field is not full product completion. Quota64%primary39%weekly. Changes saved locally.
+
+## 2026-10-28 provenance process-boundary validation
+Extended synthetic executable smoke: tagged RGB reports assumedSrgb:false; untagged RGB reports true and preserves expected samples; malformed embedded ICC exits2 without success output. Smoke passes. Preparing black-point compensation, non-identity control and provenance changes for CI. Quota100%primary38%weekly. Full product provenance persistence, P3 DeltaE and rendering remain pending.
