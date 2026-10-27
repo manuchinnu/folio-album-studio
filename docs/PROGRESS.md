@@ -246,3 +246,21 @@ Decoder integration committed and pushed; verify latest main CI next heartbeat.
 
 ## 2026-10-27 CI inventory dependency fix
 Run40429495721 failed on Ubuntu inventory: offline metadata needed libc0.2.191, absent from host-only test downloads; Rust tests and decoder smoke passed first. Other jobs cancelled by fail-fast. Added locked cargo fetch before tests to populate all-target inventory dependencies, keeping inventory offline/locked. New CI must confirm fix. Quota60%primary70%weekly.
+
+## 2026-10-27 decoder CI confirmed and reported
+Run40435338581 at1c2000e passed Windows/macOS/Linux including decoder/inventory fix. Posted report34_CHATGPT_DECODER_CI_PROGRESS to sharedDrive and read back; no newer Claude review present. Rust rendering/color/parity and M1a acceptance remain pending. Quota98%primary68%weekly.
+
+## 2026-10-27 bundled LittleCMS feasibility
+Pinned lcms2=6.1.1 static feature (lcms2-sys4.0.7 locked); bundled C library compiled on Windows with Rust1.85.1. Added RGB8 ICC-to-sRGB in-place primitive, relative-colorimetric intent, invalid profile fails without sample changes. sRGB identity control passes; all28Rust tests pass. Decoder integration, non-RGB/alpha paths, P3/reference DeltaE parity and mac static build remain pending; no full parity claim. Quota87%primary66%weekly.
+
+## 2026-10-27 RGB decoder/color integration
+normalize_rgb8 consumes oriented RGB8 pixels with embedded ICC, converts in1024pixel batches without a second full-image buffer, and returns sRGB ICC. Explicitly rejects untagged/nonRGB8 until their paths are implemented. Identity test covers partial batch and output profile validity; all29Rust tests pass. P3/reference parity, alpha/grayscale/high-bit-depth and production renderer remain pending; no functional scope reduced. Quota68%primary63%weekly.
+
+## 2026-10-27 alpha-preserving color path
+Added batched RGBA8 ICC conversion preserving straight alpha exactly, with background compositing reserved for renderer. Identity control covers all256alpha values and partial batches; all30Rust tests pass. P3/reference DeltaE, grayscale/high-bit-depth, untagged policy and full export still pending. Quota55%primary61%weekly.
+
+## 2026-10-27 tagged grayscale conversion
+Added Gray8-to-sRGB using GRAY_8 input transform (not RGB expansion before ICC), bounded batch scratch and fallible output allocation. Synthetic gamma2.2gray ramp is monotonic with black/white endpoints; mismatched RGB profile rejected. All31Rust tests pass. Gray alpha/high-bit-depth, P3/reference parity and actual export still pending. Quota46%primary59%weekly.
+
+## 2026-10-27 color checkpoint for cross-platform CI
+Added independent gamma2.2-to-sRGB analytic ramp control (within2integer codes); all31Rust tests pass. Refreshed locked inventory51packages, no missing metadata. Preparing bundled LittleCMS RGB/RGBA/gray paths for remote CI; P3 measured parity and renderer still unfinished. Quota96%primary57%weekly.

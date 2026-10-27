@@ -8,6 +8,7 @@ pub mod source_path;
 pub mod export_plan;
 pub mod publication;
 pub mod decode;
+pub mod color;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Pixels {
