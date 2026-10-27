@@ -242,3 +242,7 @@ Added scripts/rust-inventory.py using offline/locked Cargo metadata plus lockfil
 
 ## 2026-10-27 decoder CI evidence integration
 CI now runs generated synthetic PNG executable smoke with byte-budget/hash negative controls and retains decoder result plus locked dependency inventory. Inventory explicitly selects Rust1.85.1. Both scripts passed locally:37dependencies complete metadata; decoder retains ICC and expected dimensions. Remote run pending push; no color/render parity claim. Quota72%primary72%weekly.
+Decoder integration committed and pushed; verify latest main CI next heartbeat.
+
+## 2026-10-27 CI inventory dependency fix
+Run40429495721 failed on Ubuntu inventory: offline metadata needed libc0.2.191, absent from host-only test downloads; Rust tests and decoder smoke passed first. Other jobs cancelled by fail-fast. Added locked cargo fetch before tests to populate all-target inventory dependencies, keeping inventory offline/locked. New CI must confirm fix. Quota60%primary70%weekly.
