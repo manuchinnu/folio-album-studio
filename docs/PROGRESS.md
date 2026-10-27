@@ -272,3 +272,15 @@ CI40470296743 at88c0e1d completed successfully for the bundled LittleCMS checkpo
 ## 2026-10-27 gray-alpha ICC path
 
 Added GrayAlpha8 normalization and dispatcher support, transforming gray through its ICC while retaining every straight-alpha value. Synthetic 257x5 test covers partial batches, all alpha values and matching gray-only conversion. All32Rust tests and normalized executable smoke pass. Quota70%primary53%weekly. High-bit-depth, untagged policy, measured P3 parity and actual Rust export remain pending. No personal media used.
+
+## 2026-10-27 16-bit RGB ICC path
+
+Added RGB16/RGBA16 normalization without depth reduction, bounded batches and exact alpha retention; dispatcher renamed normalize_tagged. Identity testing exposed a 10-code mismatch between serialized source ICC and fresh in-memory target; transform now uses the exact serialized output profile. All33Rust tests pass with an 8-code identity bound and exact alpha checks. Gray16, float, untagged policy, measured P3 parity and rendering remain unfinished. Quota58%primary51%weekly at start. Changes saved locally; no personal photos used.
+
+## 2026-10-27 grayscale16 ICC conversion
+
+Local shell recovered. Added Gray16/GrayAlpha16 to tagged dispatcher, retaining 16-bit precision and exact alpha with bounded conversion scratch. Analytic gamma-to-sRGB test exposed default LUT approximation exceeding 0.001 normalized error; direct NO_OPTIMIZE evaluation passes the unchanged bound. All34Rust tests pass. Performance impact needs measurement; float/untagged policy, P3 parity and actual export still pending. Quota89%primary48%weekly. Local changes preserved; no personal media used.
+
+## 2026-10-27 16-bit checkpoint validation
+
+Extended gray16 control to exercise non-alpha dispatch, matching RGB channels, and explicit rejection of untagged, malformed and incompatible RGB profiles. All34Rust tests and executable synthetic smoke pass. Preparing 16-bit RGB/gray changes for cross-platform CI. Quota82%primary47%weekly; no reset credits used. Remaining parity/export gates unchanged.

@@ -29,7 +29,7 @@ fn main() {
             .map_err(|_| "Budgets must be positive integers".to_string())
             .and_then(|(bytes,pixels)| folio_core::decode::verified_oriented(
                 std::path::Path::new(&args[1]), &args[2], &args[3], bytes, pixels))
-            .and_then(|image| if normalized { folio_core::color::normalize_tagged8(image) } else { Ok(image) });
+            .and_then(|image| if normalized { folio_core::color::normalize_tagged(image) } else { Ok(image) });
         match result {
             Ok(image) => println!("{}", serde_json::json!({
                 "width":image.pixels.width(), "height":image.pixels.height(),
