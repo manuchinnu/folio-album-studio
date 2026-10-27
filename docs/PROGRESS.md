@@ -284,3 +284,13 @@ Local shell recovered. Added Gray16/GrayAlpha16 to tagged dispatcher, retaining 
 ## 2026-10-27 16-bit checkpoint validation
 
 Extended gray16 control to exercise non-alpha dispatch, matching RGB channels, and explicit rejection of untagged, malformed and incompatible RGB profiles. All34Rust tests and executable synthetic smoke pass. Preparing 16-bit RGB/gray changes for cross-platform CI. Quota82%primary47%weekly; no reset credits used. Remaining parity/export gates unchanged.
+
+## 2026-10-27 encoded 16-bit smoke evidence
+
+CI40538554226 at46954d6 completed successfully. Extended executable smoke with independently assembled synthetic RGB16/RGBA16 PNG chunks, embedded ICC, identity hashes and depth assertions through decode/orient/normalize. Passes locally; temporary synthetic files live under artifacts and are cleaned. This validates encoded-depth integration, not pixel color parity. Rust export and measured parity remain pending. Quota74%primary46%weekly.
+
+## 2026-10-27 bounded parity sample interface
+Added sample-normalized-image diagnostic capped at4096pixels before decode, exposing integer channel samples for independent comparisons. Synthetic encoded RGB16/RGBA16 smoke now checks actual channel values within8codes and alpha exactly; passes with all34Rust tests. Full P3 DeltaE/reference comparison remains pending. Quota98%primary44%weekly. Local changes saved; no personal media used.
+
+## 2026-10-28 reference sample validation
+Added independent Pillow ImageCms relative-colorimetric comparison for a1024pixel synthetic sRGB cube and negative control proving diagnostic4096pixel cap overrides larger caller budgets. Extended smoke passes, including encoded16bit sample checks. This is channel-code validation on sRGB only, not P3 DeltaE or spike acceptance. Quota89%primary43%weekly. Preparing sample diagnostics and smoke coverage for CI; no personal media used.

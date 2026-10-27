@@ -18,25 +18,30 @@ fn profile_json(args: &[String]) -> Result<String, &'static str> {
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    if matches!(args.first().map(String::as_str), Some("inspect-image" | "inspect-normalized-image")) {
+    if matches!(args.first().map(String::as_str), Some("inspect-image" | "inspect-normalized-image" | "sample-normalized-image")) {
         if args.len() != 6 {
             eprintln!("Usage: folio-cli inspect-image <root> <relative-path> <sha256> <max-bytes> <max-pixels>");
             std::process::exit(2);
         }
-        let normalized = args[0] == "inspect-normalized-image";
+        let sample = args[0] == "sample-normalized-image";
+        let normalized = args[0] != "inspect-image";
         let result = args[4].parse::<u64>().and_then(|bytes|
             args[5].parse::<u64>().map(|pixels| (bytes,pixels)))
             .map_err(|_| "Budgets must be positive integers".to_string())
             .and_then(|(bytes,pixels)| folio_core::decode::verified_oriented(
-                std::path::Path::new(&args[1]), &args[2], &args[3], bytes, pixels))
+                std::path::Path::new(&args[1]), &args[2], &args[3], bytes,
+                if sample { pixels.min(4096) } else { pixels }))
             .and_then(|image| if normalized { folio_core::color::normalize_tagged(image) } else { Ok(image) });
         match result {
-            Ok(image) => println!("{}", serde_json::json!({
+            Ok(image) => {
+                let samples = if sample { folio_core::color::sample_values(&image) } else { serde_json::Value::Null };
+                println!("{}", serde_json::json!({
                 "width":image.pixels.width(), "height":image.pixels.height(),
                 "colorType":format!("{:?}", image.pixels.color()),
                 "iccBytes":image.icc_profile.as_ref().map_or(0, Vec::len),
-                "orientationApplied":true, "colorNormalized":normalized
-            })),
+                "orientationApplied":true, "colorNormalized":normalized,
+                "samples": samples
+            })); },
             Err(error) => { eprintln!("{error}"); std::process::exit(2); }
         }
         return;

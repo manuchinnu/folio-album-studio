@@ -1,6 +1,20 @@
 //! ICC conversion preserving supported sample depth and straight alpha.
 use lcms2::{Intent, PixelFormat, Profile, Transform};
 
+/// Small diagnostic samples for independent parity tooling, never full albums.
+pub fn sample_values(input: &crate::decode::OrientedImage) -> serde_json::Value {
+    if u64::from(input.pixels.width()) * u64::from(input.pixels.height()) > 4096 {
+        return serde_json::Value::Null;
+    }
+    match &input.pixels {
+        image::DynamicImage::ImageRgb8(p) => serde_json::json!(p.as_raw()),
+        image::DynamicImage::ImageRgba8(p) => serde_json::json!(p.as_raw()),
+        image::DynamicImage::ImageRgb16(p) => serde_json::json!(p.as_raw()),
+        image::DynamicImage::ImageRgba16(p) => serde_json::json!(p.as_raw()),
+        _ => serde_json::Value::Null,
+    }
+}
+
 /// Dispatch without discarding alpha or reducing bit depth implicitly.
 pub fn normalize_tagged(input: crate::decode::OrientedImage)
     -> Result<crate::decode::OrientedImage, String> {
