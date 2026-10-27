@@ -10,6 +10,58 @@ pub struct Fingerprint {
     pub bytes: u64,
 }
 
+/// Read the exact bytes a decoder should consume, verifying their saved digest.
+/// The explicit byte budget prevents unbounded buffering of an original. Do not
+/// reopen the path after this check; pass these bytes directly to the decoder.
+pub fn read_verified(root: &Path, relative: &str, expected: &str, max_bytes: u64)
+    -> Result<Vec<u8>, String> {
+    validate_digest(expected)?;
+    if max_bytes == 0 || max_bytes > usize::MAX as u64 - 1 {
+        return Err("Invalid original byte budget".into());
+    }
+    let path = resolve_original(root, relative)?;
+    let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
+    let metadata = file.metadata().map_err(|e| e.to_string())?;
+    if !metadata.is_file() || metadata.len() > max_bytes {
+        return Err("Original is not a regular file within byte budget".into());
+    }
+    let mut bytes = Vec::new();
+    let mut reader = file.take(max_bytes + 1);
+    let mut buffer = [0u8; 65536];
+    loop {
+        let count = reader.read(&mut buffer).map_err(|e| e.to_string())?;
+        if count == 0 { break; }
+        if bytes.len() as u64 + count as u64 > max_bytes {
+            return Err("Original exceeds byte budget".into());
+        }
+        bytes.try_reserve(count).map_err(|_| "Cannot allocate original buffer".to_string())?;
+        bytes.extend_from_slice(&buffer[..count]);
+    }
+    if format!("{:x}", Sha256::digest(&bytes)) != expected {
+        return Err("Original differs from saved asset identity; re-import before export".into());
+    }
+    Ok(bytes)
+}
+
+fn validate_digest(expected: &str) -> Result<(), String> {
+    if expected.len() != 64 || !expected.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)) {
+        return Err("Expected SHA256 must be 64 lowercase hexadecimal characters".into());
+    }
+    Ok(())
+}
+
+/// Refuse stale originals before export instead of silently rendering changed
+/// bytes under a saved asset identity. A later decoder must still verify its
+/// own opened bytes; this check alone cannot close a subsequent open/read race.
+pub fn verify_identity(root: &Path, relative: &str, expected: &str) -> Result<Fingerprint, String> {
+    validate_digest(expected)?;
+    let actual = fingerprint(root, relative)?;
+    if actual.sha256 != expected {
+        return Err("Original differs from saved asset identity; re-import before export".into());
+    }
+    Ok(actual)
+}
+
 /// Streaming identity check for local originals. Metadata checks catch ordinary
 /// edits during hashing; this does not claim protection against hostile races.
 pub fn fingerprint(root: &Path, relative: &str) -> Result<Fingerprint, String> {
@@ -74,6 +126,17 @@ mod tests {
         let identity = fingerprint(&root, "nested/旅.jpg").unwrap();
         assert_eq!(identity.bytes, 3);
         assert_eq!(identity.sha256, "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+        assert!(verify_identity(&root, "nested/旅.jpg", &identity.sha256).is_ok());
+        let verified = read_verified(&root, "nested/旅.jpg", &identity.sha256, 3).unwrap();
+        assert_eq!(verified, b"abc");
+        assert!(read_verified(&root, "nested/旅.jpg", &identity.sha256, 2).is_err());
+        assert!(verify_identity(&root, "nested/旅.jpg", "bad-hash").is_err());
+        // Same length is insufficient: saved identity must detect changed bytes.
+        std::fs::write(&file, b"abd").unwrap();
+        assert_eq!(verified, b"abc"); // Decoder input remains the verified snapshot.
+        assert!(read_verified(&root, "nested/旅.jpg", &identity.sha256, 3).is_err());
+        assert!(verify_identity(&root, "nested/旅.jpg", &identity.sha256)
+            .unwrap_err().contains("differs"));
         // Only remove the known fixture files/directories we created.
         std::fs::remove_file(file).unwrap();
         std::fs::remove_dir(root.join("nested")).unwrap();

@@ -39,6 +39,8 @@ jobs:
           "$PY" scripts/create-fixtures.py
           "$PY" scripts/create-import-fixtures.py
           "$PY" scripts/test-mixed-audit.py
+          "$PY" scripts/check-rust-decoder.py
+          "$PY" scripts/rust-inventory.py --output artifacts/rust-dependency-inventory.json
       - name: Verify with retained text log
         shell: bash
         run: |

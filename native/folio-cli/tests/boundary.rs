@@ -70,6 +70,17 @@ fn grid_request_runs_through_executable_and_rejects_unknown_fields() {
     })).collect();
     let mut request = serde_json::json!({"profile":"12x15L", "spreads":1,
         "minimumPpi":200, "faceInsetMm":10, "sources":sources});
+    let mut child = Command::new(env!("CARGO_BIN_EXE_folio-cli"))
+        .arg("compose-grid").stdin(Stdio::piped()).stdout(Stdio::piped())
+        .stderr(Stdio::piped()).spawn().unwrap();
+    child.stdin.take().unwrap().write_all(request.to_string().as_bytes()).unwrap();
+    let output = child.wait_with_output().unwrap();
+    assert!(output.status.success());
+    let plan: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(plan["geometry"]["proofOnly"], true);
+    assert_eq!(plan["geometry"]["units"][1]["widthPx"], 8787);
+    assert_eq!(plan["images"][2][0]["sourceIndex"], 2);
+    assert_eq!(plan["images"][1][0]["matrix"].as_array().unwrap().len(), 6);
     for valid in [true, false] {
         if !valid { request["unknown"] = true.into(); }
         let mut child = Command::new(env!("CARGO_BIN_EXE_folio-cli"))

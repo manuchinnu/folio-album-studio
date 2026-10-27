@@ -37,6 +37,15 @@ struct GridSource {
 
 /// Diagnostic layout request; not yet the canonical persisted Project format.
 pub fn layout_json(input: &str) -> Result<String, String> {
+    request_json(input, false)
+}
+
+/// Diagnostic preflighted painting plan, not a rendered PDF or persisted project.
+pub fn composition_json(input: &str) -> Result<String, String> {
+    request_json(input, true)
+}
+
+fn request_json(input: &str, composition: bool) -> Result<String, String> {
     if input.len() > 1_048_576 { return Err("Grid request exceeds 1 MiB".into()); }
     let request: GridRequest = serde_json::from_str(input).map_err(|e| e.to_string())?;
     let size = match request.profile.as_str() {
@@ -48,6 +57,11 @@ pub fn layout_json(input: &str) -> Result<String, String> {
     let sources: Vec<Source> = request.sources.iter().map(|s| Source {
         sha256: &s.sha256, width: s.width, height: s.height, faces: s.faces.clone(),
     }).collect();
+    if composition {
+        let plan = crate::export_plan::compose_grid(&sources, size, request.spreads,
+            request.minimum_ppi, request.face_inset_mm)?;
+        return serde_json::to_string(&plan).map_err(|e| e.to_string());
+    }
     let pages = layout_with_inset(&sources, size, request.spreads, request.minimum_ppi, request.face_inset_mm)?;
     serde_json::to_string(&pages).map_err(|e| e.to_string())
 }

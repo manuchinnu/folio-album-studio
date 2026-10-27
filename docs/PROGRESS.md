@@ -209,3 +209,36 @@ Added save-proof-plan <profile> <spreads> <new-json-path>, using validated geome
 
 ## 2026-10-26 grid composition integration
 Connected preflighted grid placements to exact mixed proof geometry and PDF crop transforms through export_plan::compose_grid. Returns per-unit source indices/matrices/clips only after all sources pass crop/PPI/face checks. Test verifies ordered distinct source mapping, bounded clips and rejection of insufficient resolution. All25Rust tests pass (approved outside-sandbox run for hard-link tests). Still no decoded images or PDF/JPEG outputs; actual renderer and parity next. Quota82%primary87%weekly at start.
+
+## 2026-10-26 integration checkpoint pushed
+Pushed a1bd30af86a4a6463e72ad5c915c33bcb6604a75 containing proof geometry/composition/publication and independent fixture. Staged12files, no images/common-secret-pattern matches; diff check clean. Prior25Rust and4audit tests passed. CI40343233982 queued; check result next. No cross-platform success claimed for new changes. No rendered album yet; implementation remains incomplete. Quota77%primary86%weekly.
+
+## 2026-10-26 composition CLI and CI confirmation
+CI40343233982 completed success for a1bd30a. Added compose-grid bounded stdin command sharing strict request parsing with layout-grid; emits exact proof geometry and preflighted image matrices/clips. Process integration verifies mixed spread width, proof flag, source association and matrix shape. Actual PDF/JPEG rendering still absent; main M2 gate unchanged. Quota68%primary85%weekly at start.
+
+## 2026-10-26 saved source identity verification
+Added verify_identity with strict lowercase SHA256 validation and streamed content comparison to reject originals changed since import. Synthetic test confirms same-length mutation fails; all25Rust tests pass. Documented later decoder must verify its opened bytes to avoid subsequent-open race. Helper not yet wired to renderer; actual export/parity remains pending. Quota100%primary84%weekly at start; no reset credits used.
+
+## 2026-10-26 verified decoder input snapshot
+Added read_verified: bounded original bytes read from one handle, SHA256 checked on returned buffer; decoder must consume buffer rather than reopen path. Rejects over-budget files and allocation failure. Synthetic exact-budget/too-small-budget/changed-content tests pass; returned snapshot stays unchanged after source mutation. All25Rust tests pass. Root-resolution hostile race caveat remains; actual decoder/render integration still pending. Quota91%primary82%weekly at start.
+
+## 2026-10-27 Rust raw decoder spike
+Pinned image0.25.5 with JPEG/PNG-only features and updated Cargo.lock. Added raw decoder with header pixel-budget check and512MiB decoder allocation limit; verified_raw consumes hash-verified snapshot. Synthetic PNG roundtrip preserves RGBA samples; budget/truncated/invalid tests pass. All26Rust tests pass on Rust1.85.1. Raw decoding deliberately lacks EXIF orientation/ICC conversion/HEIC, so not production or parity completion. Whole-process RSS still unmeasured. Next integrate orientation/color and real image painting. Quota84%primary81%weekly at start.
+
+## 2026-10-27 oriented decoder foundation
+Added oriented JPEG/PNG decode applying decoder EXIF orientation and retaining embedded ICC bytes for later conversion. Synthetic JPEG APP1 orientation6 test verifies pixel mapping and swapped dimensions; all27Rust tests pass. Samples not color-normalized yet; HEIC, all-orientation fixtures, ICC parity and actual rendering pending. Metadata is parsed separately after guarded decode; whole-process peak memory unmeasured. Quota70%primary79%weekly at start.
+
+## 2026-10-27 full EXIF orientation control
+Expanded synthetic JPEG APP1 test to all8 EXIF orientations, comparing every decoded pixel with an independent coordinate oracle including transpose/transverse and dimension swaps. All27Rust tests pass. This validates orientation mapping only, not reference decoder color parity, HEIC or production rendering. Quota60%primary77%weekly at start.
+
+## 2026-10-27 verified decoder CLI integration
+Added verified_oriented and inspect-image <root> <relative> <sha256> <max-bytes> <max-pixels>. Reports oriented dimensions, sample type and retained ICC byte count with explicit colorNormalized:false. Synthetic120x80PNG smoke check returns Rgb8,588ICCbytes;1byte budget rejects. All27Rust tests pass. No personal photos read. Actual color normalization/export/parity still pending. Quota100%primary76%weekly at start; no reset credits used.
+
+## 2026-10-27 single decoder memory path
+Unified raw/oriented decoding through one decoder instance, removing repeated header/metadata decoder construction. Reserve output bytes against allocation limits before DynamicImage allocation, matching image crate reader behavior; retain pixel-budget and EXIF/ICC behavior. All27Rust tests pass including8orientation oracle. Peak RSS not measured and color conversion/export remains pending. Quota90%primary75%weekly at start.
+
+## 2026-10-27 locked Rust dependency inventory
+Added scripts/rust-inventory.py using offline/locked Cargo metadata plus lockfile checksums. Generated artifacts/rust-dependency-inventory.json:37third-party packages, no missing declared-license/checksum metadata, no absolute local paths. Explicitly metadata inventory only, not full SBOM/license-text distribution/legal review/model provenance. Useful baseline for spike packaging evidence; rendering/color/parity still pending. Quota81%primary73%weekly.
+
+## 2026-10-27 decoder CI evidence integration
+CI now runs generated synthetic PNG executable smoke with byte-budget/hash negative controls and retains decoder result plus locked dependency inventory. Inventory explicitly selects Rust1.85.1. Both scripts passed locally:37dependencies complete metadata; decoder retains ICC and expected dimensions. Remote run pending push; no color/render parity claim. Quota72%primary72%weekly.

@@ -18,6 +18,27 @@ fn profile_json(args: &[String]) -> Result<String, &'static str> {
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().map(String::as_str) == Some("inspect-image") {
+        if args.len() != 6 {
+            eprintln!("Usage: folio-cli inspect-image <root> <relative-path> <sha256> <max-bytes> <max-pixels>");
+            std::process::exit(2);
+        }
+        let result = args[4].parse::<u64>().and_then(|bytes|
+            args[5].parse::<u64>().map(|pixels| (bytes,pixels)))
+            .map_err(|_| "Budgets must be positive integers".to_string())
+            .and_then(|(bytes,pixels)| folio_core::decode::verified_oriented(
+                std::path::Path::new(&args[1]), &args[2], &args[3], bytes, pixels));
+        match result {
+            Ok(image) => println!("{}", serde_json::json!({
+                "width":image.pixels.width(), "height":image.pixels.height(),
+                "colorType":format!("{:?}", image.pixels.color()),
+                "iccBytes":image.icc_profile.as_ref().map_or(0, Vec::len),
+                "orientationApplied":true, "colorNormalized":false
+            })),
+            Err(error) => { eprintln!("{error}"); std::process::exit(2); }
+        }
+        return;
+    }
     if args.first().map(String::as_str) == Some("save-proof-plan") {
         if args.len() != 4 {
             eprintln!("Usage: folio-cli save-proof-plan <12x12|12x15L|12x18L> <spread-count:1..39> <new-json-path>");
@@ -42,11 +63,14 @@ fn main() {
         }
         return;
     }
-    if args == ["layout-grid"] {
+    if args == ["layout-grid"] || args == ["compose-grid"] {
         use std::io::Read;
         let mut input = String::new();
         let result = std::io::stdin().take(1_048_577).read_to_string(&mut input)
-            .map_err(|e| e.to_string()).and_then(|_| folio_core::grid::layout_json(&input));
+            .map_err(|e| e.to_string()).and_then(|_| {
+                if args[0] == "compose-grid" { folio_core::grid::composition_json(&input) }
+                else { folio_core::grid::layout_json(&input) }
+            });
         match result {
             Ok(json) => println!("{json}"),
             Err(error) => { eprintln!("{error}"); std::process::exit(2); }
