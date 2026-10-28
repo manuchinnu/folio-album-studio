@@ -42,12 +42,13 @@ fn main() {
         }
         return;
     }
-    if matches!(args.first().map(String::as_str), Some("inspect-image" | "inspect-normalized-image" | "sample-normalized-image")) {
-        if args.len() != 6 {
+    if matches!(args.first().map(String::as_str), Some("inspect-image" | "inspect-normalized-image" | "sample-normalized-image" | "sample-resized-image")) {
+        let resize = args[0] == "sample-resized-image";
+        if args.len() != if resize { 8 } else { 6 } {
             eprintln!("Usage: folio-cli inspect-image <root> <relative-path> <sha256> <max-bytes> <max-pixels>");
             std::process::exit(2);
         }
-        let sample = args[0] == "sample-normalized-image";
+        let sample = args[0] == "sample-normalized-image" || resize;
         let normalized = args[0] != "inspect-image";
         let result = args[4].parse::<u64>().and_then(|bytes|
             args[5].parse::<u64>().map(|pixels| (bytes,pixels)))
@@ -55,7 +56,17 @@ fn main() {
             .and_then(|(bytes,pixels)| folio_core::decode::verified_oriented(
                 std::path::Path::new(&args[1]), &args[2], &args[3], bytes,
                 if sample { pixels.min(4096) } else { pixels }))
-            .and_then(|image| if normalized { folio_core::color::normalize_with_provenance(image) } else { Ok((image, false)) });
+            .and_then(|image| if normalized { folio_core::color::normalize_with_provenance(image) } else { Ok((image, false)) })
+            .and_then(|(mut image, assumed)| {
+                if resize {
+                    let width = args[6].parse::<u32>().map_err(|e| e.to_string())?;
+                    let height = args[7].parse::<u32>().map_err(|e| e.to_string())?;
+                    if u64::from(width)*u64::from(height) > 4096 { return Err("Diagnostic output exceeds 4096 pixels".into()); }
+                    let rgb = image.pixels.as_rgb8().ok_or("Resize diagnostic requires RGB8")?;
+                    image.pixels = folio_core::raster::resize_tile(rgb,width,height,64*1024*1024)?.into();
+                }
+                Ok((image, assumed))
+            });
         match result {
             Ok((image, assumed_srgb)) => {
                 let samples = if sample { folio_core::color::sample_values(&image) } else { serde_json::Value::Null };

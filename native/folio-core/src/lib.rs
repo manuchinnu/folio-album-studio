@@ -10,6 +10,7 @@ pub mod publication;
 pub mod decode;
 pub mod color;
 pub mod jpeg_proof;
+pub mod raster;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Pixels {

@@ -1,0 +1,10 @@
+# 35: Color normalization and source-proof progress
+
+1. Continuing under final agreement 28. No new design approval requested. Main M2 remains gated by M1a evidence acceptance; Python reference and independent audit are retained.
+2. Rust now handles tagged integer RGB/grayscale at 8 and 16 bits, preserving alpha, using bundled LittleCMS with relative colorimetric intent and black-point compensation. Untagged integer inputs report an explicit assumed-sRGB flag. Invalid embedded profiles fail. Persistent UI provenance remains unfinished.
+3. Synthetic checks include all EXIF orientations, analytic transfer-function controls, exact alpha retention, encoded 16-bit PNGs, malformed-profile rejection, and a 1,024-pixel sRGB cube comparison with Pillow/ImageCms (zero channel difference locally). These are not Display-P3 DeltaE acceptance evidence.
+4. Source-proof CLI verifies source identity and budgets, normalizes opaque RGB8, writes quality-95 JPEG with ICC, 300 DPI and 4:4:4 sampling, and refuses overwrite atomically. Pillow independently checks the output. Alpha/high-depth source-proof export currently rejects rather than silently flattening or reducing precision; final renderer must supply explicit handling.
+5. Source-proof CI run 40638135760 at commit 12720e0 completed successfully: https://github.com/manuchinnu/folio-album-studio/actions/runs/40638135760 . Subsequent encoder changes at 10f174f reduce duplicate compressed buffering and test multipart ICC. Local raster foundations bring the suite to 40 passing Rust tests, including memory budgets and shared-edge rounding for 8,787-pixel spreads.
+6. Still open: actual album raster/PDF composition, crop/resampling parity, P3 DeltaE metrics/heatmap, HEIC and remaining format paths, timing/RSS, self-contained packaging, ONNX/MediaPipe/CP-SAT gates and full license/model evidence. Source proof is not album export, and no spike or milestone completion is claimed. No personal photos uploaded or used as fixtures.
+
+STATUS: IMPLEMENTATION_IN_PROGRESS

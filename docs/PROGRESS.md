@@ -333,3 +333,27 @@ Changed ICC insertion to extend and shift the existing compressed JPEG buffer in
 
 ## 2026-10-28 multipart ICC checkpoint
 Added70KB synthetic ICC test crossing APP2 segment boundary, verifying sequence/count/length fields, exact reconstructed profile and decodable JPEG after in-buffer insertion. All38Rust tests pass. Preparing encoder allocation/profile guards for CI. Quota92%primary99%weekly. Layout rendering and measured parity remain pending.
+
+## 2026-10-28 raster canvas foundation
+Added fallibly allocated white RGB canvas with explicit byte budget and checked dimensions; opaque tile placement validates complete bounds before writes and never implicitly clips/resizes. Tests cover edge placement, untouched background, overflow/budget rejection and no partial writes. All39Rust tests pass. Crop resampling/composition integration and full layout export still pending. Quota84%primary98%weekly. Changes saved locally.
+
+## 2026-10-28 physical-to-raster frame mapping
+Added300DPI absolute-edge quantization with finite/bounds/degenerate checks. Fractional fold test proves adjacent frames share an edge and preserve8787pixel spread width without independently rounding both halves. All40Rust tests pass. Resampling and full composition integration still pending. Quota77%primary96%weekly. Changes saved locally.
+
+## 2026-10-28 consolidated Claude evidence update
+Posted35_CHATGPT_COLOR_SOURCE_PROOF_PROGRESS.md to shared Drive (id1GXiB4n1XZolsTXUSReSqcZOxHPKZhq5Y); verified folder metadata. No newer Claude review than28 present. Report distinguishes validated color/source-proof work from open album rendering, parity and packaging gates. Quota72%primary96%weekly. Raster foundations remain local and tested; no new approval wait introduced.
+
+## 2026-10-28 candidate tile resampling
+Added Lanczos3 RGB tile resampling with preflight accounting for retained source, RGBA32F intermediate, output and weight scratch based on pinned image0.25.5 implementation. Tests cover up/downsample constant color, output size and budget/overflow rejection; all41Rust tests pass. Allocation estimate is not measured RSS or fallible allocation guarantee. Candidate only until reference image-operation parity measured; crop integration still pending. Quota100%primary94%weekly. Changes saved locally.
+
+## 2026-10-28 bounded resize diagnostics
+Added sample-resized-image command to expose normalized RGB8 Lanczos candidate output for Python comparison. Input/output capped4096pixels and working estimate64MiB; no implicit alpha/depth reduction. All41Rust tests pass. Independent resampling parity measurements are next; no production parity claim. Quota91%primary92%weekly. Changes saved locally.
+
+## 2026-10-28 measured resampling discrepancy
+Added measure-rust-resize.py with synthetic gradient/checker/impulse at down/up/identity sizes, comparing raw RGB8 samples against Pillow Lanczos. Report artifacts/rust-resize-reference.json: gradients/downsamples max1code, identity exact; checker upsample max25codes (144channels >1), impulse upsample max5codes. Candidate is NOT accepted as reference-equivalent. Investigate intermediate clipping/axis order and measure DeltaE before selecting/falling back; do not relax R-PARITY. Quota83%primary91%weekly. No personal media used.
+
+## 2026-10-28 resampling discrepancy correction
+Changed candidate to explicit horizontal-first then vertical Lanczos passes with RGB8 intermediate rounding/clipping; increased conservative allocation estimate. Re-ran nine synthetic comparisons: eight exact, checker upscale max1code (previously25), no channels >1. All41Rust tests pass. Evidence supports pass order/intermediate precision as cause; broader corpus/DeltaE and performance still required before acceptance. Quota75%primary90%weekly. Changes saved locally.
+
+## 2026-10-28 resampling CI regression coverage
+Expanded reference comparison to24cases including seeded noise, one-pixel reduction and single-axis scaling.22cases exact,2max1code, none above1. Added saved-report channel regression assertion and CI execution; this is not DeltaE acceptance. Preparing raster foundation/diagnostics commit. Quota68%primary89%weekly.
