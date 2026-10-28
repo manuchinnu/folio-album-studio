@@ -1,4 +1,52 @@
 //! Budgeted opaque proof canvas. Resampling/color policy belongs to the caller.
+/// Encode a rendered sRGB unit as a tagged proof. The working budget covers
+/// raster operations; compressed encoder allocations still need RSS validation.
+pub fn render_jpeg_unit<F>(width: u32, height: u32, placements: &[crate::grid::Placement],
+    max_working_bytes: u64, load: F) -> Result<Vec<u8>, String>
+where F: FnMut(usize) -> Result<image::RgbImage, String> {
+    let page = render_unit(width,height,placements,max_working_bytes,load)?;
+    let icc = lcms2::Profile::new_srgb().icc().map_err(|e| e.to_string())?;
+    crate::jpeg_proof::encode(&page,&icc,95)
+}
+
+/// Render a preflighted unit, loading one normalized opaque RGB8 source at a
+/// time. Loader must enforce source identity and its own decode budget.
+pub fn render_unit<F>(width: u32, height: u32, placements: &[crate::grid::Placement],
+    max_working_bytes: u64, mut load: F) -> Result<image::RgbImage, String>
+where F: FnMut(usize) -> Result<image::RgbImage, String> {
+    for placement in placements { frame_pixels(placement.rect,width,height)?; }
+    let cap = usize::try_from(max_working_bytes).unwrap_or(usize::MAX);
+    let mut page = canvas(width,height,cap)?;
+    for placement in placements {
+        let source = load(placement.source_index)?;
+        paint_frame(&mut page,&source,placement.crop,placement.rect,max_working_bytes)?;
+    }
+    Ok(page)
+}
+
+/// Render one already-normalized opaque source into a physical frame. The
+/// destination is changed only after geometry, cropping and resampling succeed.
+pub fn paint_frame(page: &mut image::RgbImage, source: &image::RgbImage,
+    crop: crate::crop::Crop, frame: crate::safety::RectMm, max_working_bytes: u64)
+    -> Result<(), &'static str> {
+    let [x,y,w,h] = frame_pixels(frame,page.width(),page.height())?;
+    let available = max_working_bytes.checked_sub(page.as_raw().len() as u64)
+        .ok_or("Canvas exceeds composition memory budget")?;
+    let tile = crop_tile(source,crop,w,h,available)?;
+    paste(page,&tile,x,y)
+}
+
+pub fn crop_tile(source: &image::RgbImage, crop: crate::crop::Crop, width: u32, height: u32,
+    max_working_bytes: u64) -> Result<image::RgbImage, &'static str> {
+    let [x,y,w,h] = crop.pixel_bounds(source.width(),source.height())?;
+    let retained = source.as_raw().len() as u64;
+    let crop_bytes = u64::from(w)*u64::from(h)*3;
+    let remaining = max_working_bytes.checked_sub(retained).ok_or("Crop exceeds memory budget")?;
+    if crop_bytes > remaining { return Err("Crop exceeds memory budget"); }
+    let cropped = image::imageops::crop_imm(source,x,y,w,h).to_image();
+    resize_tile(&cropped,width,height,remaining)
+}
+
 /// Candidate Lanczos3 tile resampler for the spike. Reference parity must be
 /// measured before this becomes the production resampling policy.
 pub fn resize_tile(source: &image::RgbImage, width: u32, height: u32, max_working_bytes: u64)
@@ -72,6 +120,64 @@ pub fn paste(canvas: &mut image::RgbImage, tile: &image::RgbImage, x: u32, y: u3
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn unit_loads_in_order_and_invalid_geometry_prevents_loading() {
+        let mm = 25.4/300.0;
+        let placement = |index,x| crate::grid::Placement { source_index:index,
+            rect:crate::safety::RectMm {x:x*mm,y:0.0,width:4.0*mm,height:4.0*mm},
+            crop:crate::crop::Crop::new(0.0,0.0,1.0,1.0).unwrap() };
+        let mut loaded = Vec::new();
+        let page = render_unit(8,4,&[placement(3,0.0),placement(7,4.0)],100000, |i| {
+            loaded.push(i);
+            Ok(image::RgbImage::from_pixel(4,4,image::Rgb([i as u8,20,30])))
+        }).unwrap();
+        assert_eq!(loaded,vec![3,7]);
+        assert_eq!(page.get_pixel(0,0)[0],3);
+        assert_eq!(page.get_pixel(7,3)[0],7);
+        assert!(render_unit(8,4,&[placement(3,0.0),placement(7,5.0)],100000,
+            |_| panic!("preflight must precede source access")).is_err());
+        assert!(render_unit(8,4,&[placement(3,0.0)],100000,
+            |_| Err("source changed".into())).is_err());
+    }
+    #[test]
+    fn composed_unit_encodes_to_tagged_jpeg() {
+        use image::ImageDecoder;
+        let mm = 25.4/300.0;
+        let placements = [crate::grid::Placement { source_index:0,
+            rect:crate::safety::RectMm {x:0.0,y:0.0,width:32.0*mm,height:16.0*mm},
+            crop:crate::crop::Crop::new(0.0,0.0,1.0,1.0).unwrap() }];
+        let bytes = render_jpeg_unit(32,16,&placements,100000,
+            |_| Ok(image::RgbImage::from_pixel(16,8,image::Rgb([30,90,180])))).unwrap();
+        let mut decoder = image::codecs::jpeg::JpegDecoder::new(std::io::Cursor::new(&bytes)).unwrap();
+        assert_eq!(decoder.dimensions(),(32,16));
+        assert!(decoder.icc_profile().unwrap().is_some());
+        let decoded = image::load_from_memory(&bytes).unwrap().to_rgb8();
+        for p in decoded.pixels() { for (a,b) in p.0.iter().zip([30u8,90,180]) { assert!(a.abs_diff(b)<=3); }}
+    }
+    #[test]
+    fn physical_frame_pipeline_paints_only_target_and_is_transactional_on_error() {
+        let mut page = canvas(12,8,288).unwrap();
+        let source = image::RgbImage::from_pixel(10,10,image::Rgb([15,60,210]));
+        let crop = crate::crop::Crop::new(0.2,0.2,0.6,0.6).unwrap();
+        let mm = 25.4/300.0;
+        let frame = crate::safety::RectMm { x:3.0*mm,y:2.0*mm,width:6.0*mm,height:4.0*mm };
+        paint_frame(&mut page,&source,crop,frame,100000).unwrap();
+        for (x,y,p) in page.enumerate_pixels() {
+            assert_eq!(p.0, if (3..9).contains(&x) && (2..6).contains(&y) { [15,60,210] } else { [255;3] });
+        }
+        let before = page.clone();
+        assert!(paint_frame(&mut page,&source,crop,frame,300).is_err());
+        assert_eq!(page,before);
+    }
+    #[test]
+    fn crop_uses_reference_half_even_edges_and_correct_source_region() {
+        let source = image::RgbImage::from_fn(5,5, |x,y| image::Rgb([x as u8,y as u8,99]));
+        let crop = crate::crop::Crop::new(0.1,0.3,0.6,0.6).unwrap();
+        assert_eq!(crop.pixel_bounds(5,5).unwrap(),[0,2,4,2]);
+        let tile = crop_tile(&source,crop,4,2,10000).unwrap();
+        for (x,y,p) in tile.enumerate_pixels() { assert_eq!(p,source.get_pixel(x,y+2)); }
+        assert!(crop_tile(&source,crop,4,2,75).is_err());
+    }
     #[test]
     fn resampling_preserves_constant_color_and_checks_budget_before_allocation() {
         let source = image::RgbImage::from_pixel(31,17,image::Rgb([20,100,230]));

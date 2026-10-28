@@ -357,3 +357,15 @@ Changed candidate to explicit horizontal-first then vertical Lanczos passes with
 
 ## 2026-10-28 resampling CI regression coverage
 Expanded reference comparison to24cases including seeded noise, one-pixel reduction and single-axis scaling.22cases exact,2max1code, none above1. Added saved-report channel regression assertion and CI execution; this is not DeltaE acceptance. Preparing raster foundation/diagnostics commit. Quota68%primary89%weekly.
+
+## 2026-10-28 crop-to-tile integration
+Matched retained worker.py crop edge rounding with ties-to-even; added crop_tile connecting validated normalized crop to candidate resampler while budgeting retained source/cropped buffer. Synthetic coordinate oracle checks asymmetric half-pixel edges and actual selected pixels; all42Rust tests pass. Cropped allocation precedes full resampler budget check, but is independently bounded; allocator failures still need broader hardening. Full composition/export and parity gates remain pending. Quota100%primary87%weekly.
+
+## 2026-10-29 physical frame composition
+Connected physical frame mapping, crop, candidate resampling and opaque paste in paint_frame. Working budget subtracts retained page; destination is modified only after tile succeeds. Synthetic test verifies exact target region/background and unchanged page on budget rejection. All43Rust tests pass. Multi-unit source loading/export, alpha/high-depth rendering and full parity still pending. Quota93%primary86%weekly. Changes saved locally.
+
+## 2026-10-29 sequential unit renderer
+Added render_unit over existing grid placements with geometry preflight before source access and sequential normalized RGB8 loading. Returns no completed canvas on loader/render failure. Tests verify source order, distinct adjacent image regions, and invalid geometry blocking all loads; all44Rust tests pass. Loader must enforce identity/decode budgets; multi-unit publication and broader pixel-format rendering remain pending. Quota85%primary85%weekly. Changes saved locally.
+
+## 2026-10-29 composed JPEG unit
+Connected sequential unit renderer to quality95 sRGB-tagged JPEG encoder. Synthetic end-to-end unit verifies dimensions, ICC and decoded color after resize/placement/encoding; all45Rust tests pass. Raster budget explicitly excludes compressed encoder allocations pending measured RSS. Loader integration and multi-unit export remain unfinished. Quota75%primary83%weekly.

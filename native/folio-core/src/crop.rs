@@ -28,6 +28,19 @@ impl TryFrom<CropInput> for Crop {
 }
 
 impl Crop {
+    /// Match retained Python crop edge rounding (ties to even), without
+    /// independently rounding widths or adding pixels outside the source.
+    pub fn pixel_bounds(self, width: u32, height: u32) -> Result<[u32;4], &'static str> {
+        if width == 0 || height == 0 { return Err("Empty crop source"); }
+        let left = (self.x * width as f64).round_ties_even() as u32;
+        let top = (self.y * height as f64).round_ties_even() as u32;
+        let right = ((self.x+self.w) * width as f64).round_ties_even() as u32;
+        let bottom = ((self.y+self.h) * height as f64).round_ties_even() as u32;
+        if right > width || bottom > height || right <= left || bottom <= top {
+            return Err("Crop has no valid pixel area");
+        }
+        Ok([left,top,right-left,bottom-top])
+    }
     /// PDF image placement matrix for a full source image, clipped to `frame`.
     /// Source crop coordinates are top-left normalized; PDF uses bottom-left.
     /// The caller must apply the frame clip before painting the image.
