@@ -369,3 +369,12 @@ Added render_unit over existing grid placements with geometry preflight before s
 
 ## 2026-10-29 composed JPEG unit
 Connected sequential unit renderer to quality95 sRGB-tagged JPEG encoder. Synthetic end-to-end unit verifies dimensions, ICC and decoded color after resize/placement/encoding; all45Rust tests pass. Raster budget explicitly excludes compressed encoder allocations pending measured RSS. Loader integration and multi-unit export remain unfinished. Quota75%primary83%weekly.
+
+## 2026-10-29 verified source renderer integration
+Added render_verified_jpeg joining path/hash verification, bounded oriented decode, expected-dimension check, color normalization and unit rendering. Returns assumed-profile indices for caller persistence; rejects unknown source indices before file access and alpha/depth conversion remains explicit. All46Rust tests pass. End-to-end file-backed renderer fixture and CLI/multi-unit publication are next; no complete export or global memory-bound claim. Quota63%primary81%weekly. Changes saved locally.
+
+## 2026-10-29 file-backed renderer validation
+Synthetic PNG integration exercises hash verification, oriented dimensions, assumed-profile provenance, resize/composition and JPEG decode. Expected-dimension mismatch and changed source are rejected. Known temporary fixture file/directory cleaned without recursive deletion. All47Rust tests pass. CLI/multi-unit publication and complete parity still pending. Quota100%primary80%weekly. Changes saved locally.
+
+## 2026-10-29 crop allocation hardening
+Replaced infallible crop-copy allocation with budgeted try_reserve canvas and explicit row copy. Corrected weight scratch estimate to include widened second-pass source width. All47Rust tests and24reference resampling cases pass. Image-crate resize internals and encoder allocation are still not globally fallible/RSS-proven. Quota91%primary79%weekly. Preparing verified renderer checkpoint.

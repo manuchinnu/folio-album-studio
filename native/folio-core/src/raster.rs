@@ -1,4 +1,38 @@
 //! Budgeted opaque proof canvas. Resampling/color policy belongs to the caller.
+pub struct VerifiedSource<'a> {
+    pub relative: &'a str,
+    pub sha256: &'a str,
+    pub oriented_width: u32,
+    pub oriented_height: u32,
+}
+
+/// Source-bound proof rendering. Assumed-profile source indices accompany the
+/// JPEG so the caller can persist provenance instead of silently discarding it.
+pub fn render_verified_jpeg(root: &std::path::Path, sources: &[VerifiedSource<'_>],
+    width: u32, height: u32, placements: &[crate::grid::Placement],
+    max_encoded_bytes: u64, max_source_pixels: u64, max_working_bytes: u64)
+    -> Result<(Vec<u8>, Vec<usize>), String> {
+    if placements.iter().any(|p| p.source_index >= sources.len()) {
+        return Err("Placement references an unknown source".into());
+    }
+    let mut assumed = Vec::new();
+    let jpeg = render_jpeg_unit(width,height,placements,max_working_bytes, |index| {
+        let source = &sources[index];
+        let decoded = crate::decode::verified_oriented(root,source.relative,source.sha256,
+            max_encoded_bytes,max_source_pixels)?;
+        if (decoded.pixels.width(),decoded.pixels.height()) != (source.oriented_width,source.oriented_height) {
+            return Err("Source dimensions differ from preflight".into());
+        }
+        let (normalized, was_assumed) = crate::color::normalize_with_provenance(decoded)?;
+        if was_assumed && !assumed.contains(&index) { assumed.push(index); }
+        match normalized.pixels {
+            image::DynamicImage::ImageRgb8(rgb) => Ok(rgb),
+            _ => Err("Proof rendering requires explicit alpha/depth conversion".into()),
+        }
+    })?;
+    Ok((jpeg,assumed))
+}
+
 /// Encode a rendered sRGB unit as a tagged proof. The working budget covers
 /// raster operations; compressed encoder allocations still need RSS validation.
 pub fn render_jpeg_unit<F>(width: u32, height: u32, placements: &[crate::grid::Placement],
@@ -43,7 +77,14 @@ pub fn crop_tile(source: &image::RgbImage, crop: crate::crop::Crop, width: u32, 
     let crop_bytes = u64::from(w)*u64::from(h)*3;
     let remaining = max_working_bytes.checked_sub(retained).ok_or("Crop exceeds memory budget")?;
     if crop_bytes > remaining { return Err("Crop exceeds memory budget"); }
-    let cropped = image::imageops::crop_imm(source,x,y,w,h).to_image();
+    let mut cropped = canvas(w,h,usize::try_from(remaining).unwrap_or(usize::MAX))
+        .map_err(|_| "Cannot allocate cropped source")?;
+    let source_stride = source.width() as usize * 3;
+    let crop_stride = w as usize * 3;
+    for (row,destination) in cropped.as_mut().chunks_exact_mut(crop_stride).enumerate() {
+        let start = (y as usize + row) * source_stride + x as usize * 3;
+        destination.copy_from_slice(&source.as_raw()[start..start+crop_stride]);
+    }
     resize_tile(&cropped,width,height,remaining)
 }
 
@@ -61,7 +102,7 @@ pub fn resize_tile(source: &image::RgbImage, width: u32, height: u32, max_workin
         .and_then(|n| n.checked_add(u64::from(width).checked_mul(u64::from(height))?.checked_mul(16)?))
         .and_then(|n| n.checked_add(u64::from(width).checked_mul(u64::from(source.height()))?.checked_mul(3)?));
     let output = u64::from(width).checked_mul(u64::from(height)).and_then(|n| n.checked_mul(3));
-    let weights = u64::from(source.width().max(source.height())).checked_mul(16);
+    let weights = u64::from(source.width().max(source.height()).max(width)).checked_mul(16);
     let required = intermediate.and_then(|n| n.checked_add(output?))
         .and_then(|n| n.checked_add(source.as_raw().len() as u64))
         .and_then(|n| n.checked_add(weights?));
@@ -120,6 +161,44 @@ pub fn paste(canvas: &mut image::RgbImage, tile: &image::RgbImage, x: u32, y: u3
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn file_backed_render_verifies_identity_dimensions_and_provenance() {
+        use sha2::{Digest,Sha256};
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../artifacts")
+            .join(format!("render-source-{}-{}",std::process::id(),
+                std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        std::fs::create_dir_all(&root).unwrap();
+        let path = root.join("synthetic.png");
+        image::RgbImage::from_pixel(8,8,image::Rgb([40,100,180])).save(&path).unwrap();
+        let hash = format!("{:x}",Sha256::digest(std::fs::read(&path).unwrap()));
+        let mut sources = [VerifiedSource {relative:"synthetic.png",sha256:&hash,oriented_width:8,oriented_height:8}];
+        let mm = 25.4/300.0;
+        let placements = [crate::grid::Placement {source_index:0,
+            rect:crate::safety::RectMm{x:0.0,y:0.0,width:16.0*mm,height:16.0*mm},
+            crop:crate::crop::Crop::new(0.0,0.0,1.0,1.0).unwrap()}];
+        let (jpeg,assumed) = render_verified_jpeg(&root,&sources,16,16,&placements,10000,1000,100000).unwrap();
+        assert_eq!(assumed,vec![0]);
+        let decoded = image::load_from_memory(&jpeg).unwrap().to_rgb8();
+        assert_eq!(decoded.dimensions(),(16,16));
+        for (a,b) in decoded.get_pixel(8,8).0.iter().zip([40u8,100,180]) { assert!(a.abs_diff(b)<=3); }
+        sources[0].oriented_width = 9;
+        assert!(render_verified_jpeg(&root,&sources,16,16,&placements,10000,1000,100000)
+            .unwrap_err().contains("dimensions"));
+        sources[0].oriented_width = 8;
+        std::fs::write(&path,b"changed synthetic source").unwrap();
+        assert!(render_verified_jpeg(&root,&sources,16,16,&placements,10000,1000,100000).is_err());
+        std::fs::remove_file(path).unwrap();
+        std::fs::remove_dir(root).unwrap();
+    }
+    #[test]
+    fn verified_renderer_rejects_unknown_source_before_file_access() {
+        let placement = crate::grid::Placement { source_index:0,
+            rect:crate::safety::RectMm {x:0.0,y:0.0,width:1.0,height:1.0},
+            crop:crate::crop::Crop::new(0.0,0.0,1.0,1.0).unwrap() };
+        let error = render_verified_jpeg(std::path::Path::new("missing"),&[],20,20,
+            &[placement],1000,1000,100000).unwrap_err();
+        assert_eq!(error,"Placement references an unknown source");
+    }
     #[test]
     fn unit_loads_in_order_and_invalid_geometry_prevents_loading() {
         let mm = 25.4/300.0;
