@@ -306,3 +306,9 @@ Added normalize_with_provenance and CLI assumedSrgb field. Untagged RGB8/RGBA8/R
 
 ## 2026-10-28 provenance process-boundary validation
 Extended synthetic executable smoke: tagged RGB reports assumedSrgb:false; untagged RGB reports true and preserves expected samples; malformed embedded ICC exits2 without success output. Smoke passes. Preparing black-point compensation, non-identity control and provenance changes for CI. Quota100%primary38%weekly. Full product provenance persistence, P3 DeltaE and rendering remain pending.
+
+## 2026-10-28 untagged grayscale assumption
+Implemented compatible gray ICC using the sRGB transfer function for untagged integer grayscale/gray-alpha, preserving assumedSrgb provenance. Full8bit ramp verifies neutral output within1code and exact alpha. All36Rust tests pass.16bit untagged gray boundary coverage, float handling, persistent UI provenance and broader parity/export gates remain pending. Quota93%primary37%weekly. Changes saved locally.
+
+## 2026-10-28 encoded gray16 provenance coverage
+Extended PNG process-boundary smoke to untagged Gray16/GrayAlpha16. Confirms assumedSrgb:true, output RGB16/RGBA16, expected neutral samples within8codes and exact alpha; all smoke cases pass. Preparing grayscale policy checkpoint for CI. Quota86%primary36%weekly. P3 measured parity and Rust rendering still pending.

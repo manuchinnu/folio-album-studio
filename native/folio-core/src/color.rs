@@ -7,12 +7,23 @@ pub fn normalize_with_provenance(mut input: crate::decode::OrientedImage)
     -> Result<(crate::decode::OrientedImage, bool), String> {
     let assumed_srgb = input.icc_profile.is_none();
     if assumed_srgb {
-        if !matches!(&input.pixels, image::DynamicImage::ImageRgb8(_) |
+        let profile = if matches!(&input.pixels, image::DynamicImage::ImageLuma8(_) |
+            image::DynamicImage::ImageLumaA8(_) | image::DynamicImage::ImageLuma16(_) |
+            image::DynamicImage::ImageLumaA16(_)) {
+            // Neutral sRGB encoding, represented by a compatible gray ICC.
+            let curve = lcms2::ToneCurve::new_parametric(4,
+                &[2.4, 1.0/1.055, 0.055/1.055, 1.0/12.92, 0.04045])
+                .map_err(|e| e.to_string())?;
+            Profile::new_gray(&lcms2::CIExyY { x:0.3127,y:0.3290,Y:1.0 }, &curve)
+                .map_err(|e| e.to_string())?
+        } else if matches!(&input.pixels, image::DynamicImage::ImageRgb8(_) |
             image::DynamicImage::ImageRgba8(_) | image::DynamicImage::ImageRgb16(_) |
             image::DynamicImage::ImageRgba16(_)) {
+            Profile::new_srgb()
+        } else {
             return Err("Untagged non-RGB source requires an explicit compatible profile".into());
-        }
-        input.icc_profile = Some(Profile::new_srgb().icc().map_err(|e| e.to_string())?);
+        };
+        input.icc_profile = Some(profile.icc().map_err(|e| e.to_string())?);
     }
     Ok((normalize_tagged(input)?, assumed_srgb))
 }
@@ -284,8 +295,14 @@ mod tests {
         assert!(!assumed);
         assert!(normalize_with_provenance(crate::decode::OrientedImage {
             pixels:pixels.into(), icc_profile:Some(vec![]) }).is_err());
-        assert!(normalize_with_provenance(crate::decode::OrientedImage {
-            pixels:image::GrayImage::new(1,1).into(), icc_profile:None }).is_err());
+        let gray = image::GrayAlphaImage::from_fn(256,1, |x,_| image::LumaA([x as u8, 255-x as u8]));
+        let (result, assumed) = normalize_with_provenance(crate::decode::OrientedImage {
+            pixels:gray.into(), icc_profile:None }).unwrap();
+        assert!(assumed);
+        for (x,_,p) in result.pixels.as_rgba8().unwrap().enumerate_pixels() {
+            assert_eq!(p[3],255-x as u8);
+            for c in 0..3 { assert!((i16::from(p[c])-x as i16).abs() <= 1); }
+        }
     }
     #[test]
     fn linear_rgb_profile_is_converted_not_merely_retagged() {

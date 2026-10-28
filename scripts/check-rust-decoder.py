@@ -84,11 +84,13 @@ with tempfile.TemporaryDirectory(prefix='folio-synthetic16-', dir=root / 'artifa
         malformed_path.name, hashlib.sha256(malformed_path.read_bytes()).hexdigest(), '1000000', '4096'],
         capture_output=True, text=True)
     assert malformed.returncode == 2 and not malformed.stdout and malformed.stderr
-    for color_type, channels, expected in [(2, 3, 'Rgb16'), (6, 4, 'Rgba16')]:
-        pixels = [12345, 23456, 34567] + ([45678] if channels == 4 else [])
+    for color_type, channels, expected in [(2, 3, 'Rgb16'), (6, 4, 'Rgba16'), (0, 1, 'Rgb16'), (4, 2, 'Rgba16')]:
+        gray = color_type in (0, 4)
+        alpha = color_type in (4, 6)
+        pixels = ([23456] if gray else [12345, 23456, 34567]) + ([45678] if alpha else [])
         scanline = b'\0' + struct.pack('>' + 'H' * channels, *pixels)
         png = (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', 1, 1, 16, color_type, 0, 0, 0))
-               + chunk(b'iCCP', b'sRGB\0\0' + zlib.compress(icc))
+               + (b'' if gray else chunk(b'iCCP', b'sRGB\0\0' + zlib.compress(icc)))
                + chunk(b'IDAT', zlib.compress(scanline)) + chunk(b'IEND', b''))
         path = Path(temporary) / 'synthetic.png'
         path.write_bytes(png)
@@ -98,10 +100,12 @@ with tempfile.TemporaryDirectory(prefix='folio-synthetic16-', dir=root / 'artifa
         info = json.loads(checked.stdout)
         assert info['colorType'] == expected and (info['width'], info['height']) == (1, 1), info
         assert info['colorNormalized'] is True and info['iccBytes'] > 0, info
-        assert len(info['samples']) == channels
-        assert all(abs(a - b) <= 8 for a, b in zip(info['samples'][:3], pixels[:3])), info
-        if channels == 4:
-            assert info['samples'][3] == pixels[3], info
+        assert len(info['samples']) == (4 if alpha else 3)
+        assert info['assumedSrgb'] is gray
+        expected_rgb = [23456] * 3 if gray else pixels[:3]
+        assert all(abs(a - b) <= 8 for a, b in zip(info['samples'][:3], expected_rgb)), info
+        if alpha:
+            assert info['samples'][3] == pixels[-1], info
         depth_results.append(info)
 # The diagnostic cap applies even when the caller supplies a larger budget.
 oversized = run(digest, 10000000, 'sample-normalized-image')
