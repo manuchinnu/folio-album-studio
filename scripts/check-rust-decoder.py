@@ -7,7 +7,7 @@ import subprocess
 import struct
 import tempfile
 import zlib
-from PIL import Image, ImageCms
+from PIL import Image, ImageCms, JpegImagePlugin
 import io
 
 root = Path(__file__).resolve().parents[1]
@@ -49,6 +49,21 @@ depth_results = []
 reference_result = None
 (root / 'artifacts').mkdir(exist_ok=True)
 with tempfile.TemporaryDirectory(prefix='folio-synthetic16-', dir=root / 'artifacts') as temporary:
+    proof = Path(temporary) / 'source-proof.jpg'
+    command = [str(binary), 'save-source-proof', str(fixture_root), 'nested/image.png',
+        digest, '10000000', '10000000', str(proof)]
+    saved = subprocess.run(command, capture_output=True, text=True)
+    assert saved.returncode == 0, saved.stderr
+    with Image.open(proof) as check:
+        assert check.size == (120,80) and check.mode == 'RGB'
+        assert check.info['dpi'] == (300,300)
+        assert JpegImagePlugin.get_sampling(check) == 0  # 4:4:4
+        ImageCms.ImageCmsProfile(io.BytesIO(check.info['icc_profile']))
+        check.load()
+    original_proof = proof.read_bytes()
+    repeated = subprocess.run(command, capture_output=True, text=True)
+    assert repeated.returncode == 2 and not repeated.stdout
+    assert proof.read_bytes() == original_proof
     # Independent Pillow/ImageCms reference across a deterministic RGB cube.
     cube = Image.new('RGB', (32, 32))
     cube.putdata([(x * 255 // 7, y * 255 // 7, z * 255 // 15)
@@ -94,6 +109,12 @@ with tempfile.TemporaryDirectory(prefix='folio-synthetic16-', dir=root / 'artifa
                + chunk(b'IDAT', zlib.compress(scanline)) + chunk(b'IEND', b''))
         path = Path(temporary) / 'synthetic.png'
         path.write_bytes(png)
+        unsupported_proof = Path(temporary) / 'unsupported-proof.jpg'
+        rejected_proof = subprocess.run([str(binary), 'save-source-proof', temporary,
+            path.name, hashlib.sha256(png).hexdigest(), '1000000', '100', str(unsupported_proof)],
+            capture_output=True, text=True)
+        assert rejected_proof.returncode == 2 and not rejected_proof.stdout
+        assert not unsupported_proof.exists(), 'Rejected depth conversion published output'
         checked = subprocess.run([str(binary), 'sample-normalized-image', temporary,
             path.name, hashlib.sha256(png).hexdigest(), '1000000', '100'], capture_output=True, text=True)
         assert checked.returncode == 0, checked.stderr
@@ -117,6 +138,7 @@ out.write_text(json.dumps({'passed': True, 'syntheticPng': result,
     'normalized16BitPng': depth_results,
     'srgbReferenceComparison': reference_result,
     'untaggedRgbAssumptionVerified': True,
+    'sourceProofVerified': {'dpi':300, 'sampling':'4:4:4', 'icc':True, 'noOverwrite':True},
     'rejected': ['encoded-byte-budget', 'changed-source-identity', 'diagnostic-pixel-cap', 'malformed-icc'],
     'scope': 'Decoder smoke only; no color or rendering parity claim'}, indent=2) + '\n')
 print('Rust decoder synthetic smoke passed')

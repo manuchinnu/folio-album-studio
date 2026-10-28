@@ -18,6 +18,30 @@ fn profile_json(args: &[String]) -> Result<String, &'static str> {
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().map(String::as_str) == Some("save-source-proof") {
+        if args.len() != 7 {
+            eprintln!("Usage: folio-cli save-source-proof <root> <relative-path> <sha256> <max-bytes> <max-pixels> <new-jpeg-path>");
+            std::process::exit(2);
+        }
+        let result = (|| -> Result<bool, String> {
+            let bytes = args[4].parse::<u64>().map_err(|e| e.to_string())?;
+            let pixels = args[5].parse::<u64>().map_err(|e| e.to_string())?;
+            let decoded = folio_core::decode::verified_oriented(
+                std::path::Path::new(&args[1]), &args[2], &args[3], bytes, pixels)?;
+            let (normalized, assumed) = folio_core::color::normalize_with_provenance(decoded)?;
+            let rgb = normalized.pixels.as_rgb8().ok_or("Source proof currently requires opaque RGB8; alpha/depth conversion must be explicit")?;
+            let icc = normalized.icc_profile.as_ref().ok_or("Missing normalized ICC")?;
+            let jpeg = folio_core::jpeg_proof::encode(rgb, icc, 95)?;
+            folio_core::publication::write_new(std::path::Path::new(&args[6]), &jpeg)
+                .map_err(|e| e.to_string())?;
+            Ok(assumed)
+        })();
+        match result {
+            Ok(assumed) => println!("{}", serde_json::json!({"saved":true,"proofOnly":true,"assumedSrgb":assumed})),
+            Err(error) => { eprintln!("{error}"); std::process::exit(2); }
+        }
+        return;
+    }
     if matches!(args.first().map(String::as_str), Some("inspect-image" | "inspect-normalized-image" | "sample-normalized-image")) {
         if args.len() != 6 {
             eprintln!("Usage: folio-cli inspect-image <root> <relative-path> <sha256> <max-bytes> <max-pixels>");

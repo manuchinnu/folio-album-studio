@@ -312,3 +312,15 @@ Implemented compatible gray ICC using the sRGB transfer function for untagged in
 
 ## 2026-10-28 encoded gray16 provenance coverage
 Extended PNG process-boundary smoke to untagged Gray16/GrayAlpha16. Confirms assumedSrgb:true, output RGB16/RGBA16, expected neutral samples within8codes and exact alpha; all smoke cases pass. Preparing grayscale policy checkpoint for CI. Quota86%primary36%weekly. P3 measured parity and Rust rendering still pending.
+
+## 2026-10-28 tagged JPEG proof primitive
+Added opaque RGB8 JPEG encoder with quality95..100 policy and standard segmented ICC APP2 embedding. Roundtrip verifies exact ICC,31x17 dimensions and solid-color sample tolerance; invalid profile/low quality rejected. All37Rust tests pass. Layout rendering, independent JPEG audit, sampling/density verification and full export integration remain pending. Encoder currently buffers both compressed JPEG and tagged output; benchmark before scale claims. Quota79%primary35%weekly. Changes saved locally.
+
+## 2026-10-28 JPEG proof density and sampling
+Set JPEG JFIF density to300DPI and independently parsed encoded APP0/SOF0 markers in tests to verify300x300DPI and4:4:4 sampling. All37Rust tests pass, including exact ICC roundtrip. Actual layout rendering and external export audit remain pending. Quota71%primary34%weekly. Changes saved locally.
+
+## 2026-10-28 source-proof executable integration
+Added save-source-proof: verify source hash/budgets, orient, normalize with assumption metadata, encode quality95 tagged JPEG and atomically publish without overwrite. Explicitly rejects alpha/high-depth output until rendering policy exists. Independent Pillow smoke confirms120x80 RGB,300DPI,4:4:4, valid ICC and repeat-write rejection preserving bytes. All37Rust tests and smoke pass. This is a source proof, not album layout export. Quota66%primary33%weekly. Changes saved locally.
+
+## 2026-10-28 source-proof checkpoint
+Added process-boundary negative checks for all four synthetic16bit formats: source-proof rejects implicit depth conversion and creates no destination file. Complete synthetic smoke passes including independent JPEG density/sampling/ICC and no-overwrite checks. Preparing source-proof integration for cross-platform CI. Quota94%primary31%weekly; no personal media used. Full layout export remains unfinished.
