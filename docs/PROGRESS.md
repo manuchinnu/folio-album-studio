@@ -324,3 +324,12 @@ Added save-source-proof: verify source hash/budgets, orient, normalize with assu
 
 ## 2026-10-28 source-proof checkpoint
 Added process-boundary negative checks for all four synthetic16bit formats: source-proof rejects implicit depth conversion and creates no destination file. Complete synthetic smoke passes including independent JPEG density/sampling/ICC and no-overwrite checks. Preparing source-proof integration for cross-platform CI. Quota94%primary31%weekly; no personal media used. Full layout export remains unfinished.
+
+## 2026-10-28 source-proof CI and profile guard
+CI40638135760 at12720e0 completed successfully. Hardened encoder to reject valid non-RGB ICC profiles for RGB samples, checking APP2 size before parsing profile. Gray-profile negative control passes with all37Rust tests. Layout rendering, P3 measured parity and full spike acceptance remain open. Quota86%primary30%weekly. Local changes preserved.
+
+## 2026-10-28 JPEG metadata allocation
+Changed ICC insertion to extend and shift the existing compressed JPEG buffer instead of retaining a second full compressed output. Checked size arithmetic and fallible reserve remain; allocator reallocation can still temporarily increase peak memory, so no RSS claim. All37Rust tests and independent Pillow smoke pass. Quota98%primary100%weekly; replenishment observed without spending reset credit. Layout renderer and parity gates remain pending. Changes saved locally.
+
+## 2026-10-28 multipart ICC checkpoint
+Added70KB synthetic ICC test crossing APP2 segment boundary, verifying sequence/count/length fields, exact reconstructed profile and decodable JPEG after in-buffer insertion. All38Rust tests pass. Preparing encoder allocation/profile guards for CI. Quota92%primary99%weekly. Layout rendering and measured parity remain pending.
