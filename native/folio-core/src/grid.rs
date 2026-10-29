@@ -9,7 +9,8 @@ pub struct Source<'a> {
     pub faces: Vec<Crop>,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Placement {
     pub source_index: usize,
     pub rect: RectMm,

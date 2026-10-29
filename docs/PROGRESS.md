@@ -378,3 +378,12 @@ Synthetic PNG integration exercises hash verification, oriented dimensions, assu
 
 ## 2026-10-29 crop allocation hardening
 Replaced infallible crop-copy allocation with budgeted try_reserve canvas and explicit row copy. Corrected weight scratch estimate to include widened second-pass source width. All47Rust tests and24reference resampling cases pass. Image-crate resize internals and encoder allocation are still not globally fallible/RSS-proven. Quota91%primary79%weekly. Preparing verified renderer checkpoint.
+
+## 2026-10-29 unit-proof command boundary
+Added save-unit-proof with strict bounded JSON, up to64placements/sources, verified loader and atomic JPEG publication; returns assumed-profile indices. Fixed diagnostic caps64MiB encoded source,40MP decode,512MiB raster estimate. This is not persisted-project schema or production face/PPI preflight. All47Rust tests pass; process-boundary composition smoke still required next. Quota83%primary78%weekly. Changes saved locally.
+
+## 2026-10-29 unit command independent smoke
+Added check-rust-unit.py and CI step. Synthetic two-source64x32 composition independently verifies placement colors, ICC,300DPI,4:4:4 and assumed-source indices. Repeated destination preserved; unknown fields, stale hash, dimensions and invalid bounds reject without output. Smoke passes. Full album/production preflight/parity remain open. Quota72%primary76%weekly. Changes saved locally.
+
+## 2026-10-29 unit boundary checkpoint
+Extended executable smoke to invalid crop, empty/over64placements and over1MiB input; all reject without destination. Complete unit smoke passes. Preparing strict unit command and independent CI checks for push. Quota63%primary75%weekly. No production-preflight or album completion claim.

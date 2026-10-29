@@ -1,7 +1,8 @@
 //! Assumed, configurable face/text safety. No exclusion at a layflat fold.
 use crate::Pixels;
 
-#[derive(Debug, Clone, Copy, serde::Serialize)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RectMm {
     pub x: f64,
     pub y: f64,

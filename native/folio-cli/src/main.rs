@@ -18,6 +18,19 @@ fn profile_json(args: &[String]) -> Result<String, &'static str> {
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().map(String::as_str) == Some("save-unit-proof") {
+        use std::io::Read;
+        if args.len()!=3 { eprintln!("Usage: folio-cli save-unit-proof <source-root> <new-jpeg-path> (JSON on stdin)"); std::process::exit(2); }
+        let mut input = String::new();
+        let result = std::io::stdin().take(1_048_577).read_to_string(&mut input)
+            .map_err(|e|e.to_string()).and_then(|_| folio_core::raster::save_unit_json(
+                &input,std::path::Path::new(&args[1]),std::path::Path::new(&args[2])));
+        match result {
+            Ok(assumed) => println!("{}",serde_json::json!({"saved":true,"proofOnly":true,"assumedSrgbSources":assumed})),
+            Err(error) => { eprintln!("{error}"); std::process::exit(2); }
+        }
+        return;
+    }
     if args.first().map(String::as_str) == Some("save-source-proof") {
         if args.len() != 7 {
             eprintln!("Usage: folio-cli save-source-proof <root> <relative-path> <sha256> <max-bytes> <max-pixels> <new-jpeg-path>");

@@ -1,4 +1,37 @@
 //! Budgeted opaque proof canvas. Resampling/color policy belongs to the caller.
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields, rename_all="camelCase")]
+struct UnitRequest {
+    width: u32,
+    height: u32,
+    placements: Vec<crate::grid::Placement>,
+    sources: Vec<UnitSource>,
+}
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields, rename_all="camelCase")]
+struct UnitSource {
+    relative: String,
+    sha256: String,
+    oriented_width: u32,
+    oriented_height: u32,
+}
+
+/// Diagnostic proof boundary, not the persisted project or production preflight.
+pub fn save_unit_json(input: &str, root: &std::path::Path, destination: &std::path::Path)
+    -> Result<Vec<usize>,String> {
+    if input.len()>1_048_576 { return Err("Unit request exceeds 1 MiB".into()); }
+    let request: UnitRequest = serde_json::from_str(input).map_err(|e|e.to_string())?;
+    if request.placements.is_empty() || request.placements.len()>64 || request.sources.len()>64 {
+        return Err("Proof unit requires 1..64 placements and at most 64 sources".into());
+    }
+    let sources: Vec<_> = request.sources.iter().map(|s| VerifiedSource {
+        relative:&s.relative,sha256:&s.sha256,oriented_width:s.oriented_width,oriented_height:s.oriented_height
+    }).collect();
+    let (jpeg,assumed) = render_verified_jpeg(root,&sources,request.width,request.height,
+        &request.placements,64*1024*1024,40_000_000,512*1024*1024)?;
+    crate::publication::write_new(destination,&jpeg).map_err(|e|e.to_string())?;
+    Ok(assumed)
+}
 pub struct VerifiedSource<'a> {
     pub relative: &'a str,
     pub sha256: &'a str,
